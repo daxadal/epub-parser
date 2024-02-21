@@ -1,7 +1,7 @@
 import fs from "fs";
 import crypto from "crypto";
 
-import jszip from "node-zip";
+import jszip from "jszip";
 import { Parser, convertableToString } from "xml2js";
 import request from "request";
 
@@ -51,7 +51,7 @@ export function open(
 
   let epubdata = {};
   let md5hash: string;
-  let htmlNav: string|null = "<ul>";
+  let htmlNav: string | null = "<ul>";
 
   let container: {
       rootfiles: { rootfile: { [x: string]: { [x: string]: any } }[] }[];
@@ -165,117 +165,117 @@ export function open(
     opfDataXML = extractText(root);
 
     parser.parseStringPromise(opfDataXML.toString()).then(
-    (opfJSON) => {
-      // store opf data
-      opf = opfJSON["opf:package"]
-        ? opfJSON["opf:package"]
-        : opfJSON["package"];
-      uniqueIdentifier = opf["$"]["unique-identifier"];
-      epubVersion = opf["$"]["version"][0];
+      (opfJSON) => {
+        // store opf data
+        opf = opfJSON["opf:package"]
+          ? opfJSON["opf:package"]
+          : opfJSON["package"];
+        uniqueIdentifier = opf["$"]["unique-identifier"];
+        epubVersion = opf["$"]["version"][0];
 
-      isEpub3 = epubVersion == "3" || epubVersion == "3.0" ? true : false;
+        isEpub3 = epubVersion == "3" || epubVersion == "3.0" ? true : false;
 
-      //  console.log('epub version:'+epubVersion);
-      for (const att in opf["$"]) {
-        if (att.match(/^xmlns:/)) {
-          ns = att.replace(/^xmlns:/, "");
-          if (opf["$"][att] == "http://www.idpf.org/2007/opf")
-            opfPrefix = ns + ":";
-          if (opf["$"][att] == "http://purl.org/dc/elements/1.1/")
-            dcPrefix = ns + ":";
-        }
-      }
-
-      parsePackageElements();
-
-      // spine
-      itemlist = manifest.item;
-
-      itemreflist = spine.itemref;
-
-      buildItemHashes();
-
-      buildLinearSpine();
-
-      // metadata
-      buildMetadataLists();
-
-      if (!ncxId) {
-        // assume epub 3 navigation doc
-        if (!isEpub3)
-          cb(new Error("ncx id not found but package indicates epub 2"));
-
-        ncxDataXML = "";
-        ncx = {};
-        ncxPath = "";
-        htmlNav = null;
-
-        if (!epub3NavHtml) return cb(new Error("epub 3 with no nav html"));
-
-        parser.parseStringPromise(epub3NavHtml).then(
-        (navJSON) => {
-          nav = navJSON;
-          epubdata = getEpubDataBlock();
-          cb(null, epubdata);
-        },
-          (err) => cb(err)
-        );
-      } else {
-        // epub 2, use ncx doc
-        for (const item in manifest[opfPrefix + "item"]) {
-          if (manifest[opfPrefix + "item"][item]["$"].id == ncxId) {
-            ncxPath = opsRoot + manifest[opfPrefix + "item"][item]["$"].href;
+        //  console.log('epub version:'+epubVersion);
+        for (const att in opf["$"]) {
+          if (att.match(/^xmlns:/)) {
+            ns = att.replace(/^xmlns:/, "");
+            if (opf["$"][att] == "http://www.idpf.org/2007/opf")
+              opfPrefix = ns + ":";
+            if (opf["$"][att] == "http://purl.org/dc/elements/1.1/")
+              dcPrefix = ns + ":";
           }
         }
-        //console.log('determined ncxPath:'+ncxPath);
-        ncxDataXML = extractText(ncxPath);
 
-        parser.parseString(ncxDataXML.toString(), function (err, ncxJSON) {
-          if (err) return cb(err);
+        parsePackageElements();
 
-          function setPrefix(ncxJSON: {
-            [x: string]: { [x: string]: string };
-          }) {
-            for (const att in ncxJSON["$"]) {
-              //console.log(att);
-              if (att.match(/^xmlns:/)) {
-                const ns = att.replace(/^xmlns:/, "");
-                if (
-                  ncxJSON["$"][att] == "http://www.daisy.org/z3986/2005/ncx/"
-                )
-                  ncxPrefix = ns + ":";
-              }
+        // spine
+        itemlist = manifest.item;
+
+        itemreflist = spine.itemref;
+
+        buildItemHashes();
+
+        buildLinearSpine();
+
+        // metadata
+        buildMetadataLists();
+
+        if (!ncxId) {
+          // assume epub 3 navigation doc
+          if (!isEpub3)
+            cb(new Error("ncx id not found but package indicates epub 2"));
+
+          ncxDataXML = "";
+          ncx = {};
+          ncxPath = "";
+          htmlNav = null;
+
+          if (!epub3NavHtml) return cb(new Error("epub 3 with no nav html"));
+
+          parser.parseStringPromise(epub3NavHtml).then(
+            (navJSON) => {
+              nav = navJSON;
+              epubdata = getEpubDataBlock();
+              cb(null, epubdata);
+            },
+            (err) => cb(err)
+          );
+        } else {
+          // epub 2, use ncx doc
+          for (const item in manifest[opfPrefix + "item"]) {
+            if (manifest[opfPrefix + "item"][item]["$"].id == ncxId) {
+              ncxPath = opsRoot + manifest[opfPrefix + "item"][item]["$"].href;
             }
           }
+          //console.log('determined ncxPath:'+ncxPath);
+          ncxDataXML = extractText(ncxPath);
 
-          // grab the correct ns prefix for ncx
-          for (const prop in ncxJSON) {
-            //console.log(prop);
-            if (prop === "$") {
-              // normal parse result
-              setPrefix(ncxJSON);
-            } else {
-              if (typeof ncxJSON[prop]["$"] !== "undefined") {
-                //console.log(ncxJSON[prop]['$']);
-                setPrefix(ncxJSON[prop]);
+          parser.parseString(ncxDataXML.toString(), function (err, ncxJSON) {
+            if (err) return cb(err);
+
+            function setPrefix(ncxJSON: {
+              [x: string]: { [x: string]: string };
+            }) {
+              for (const att in ncxJSON["$"]) {
+                //console.log(att);
+                if (att.match(/^xmlns:/)) {
+                  const ns = att.replace(/^xmlns:/, "");
+                  if (
+                    ncxJSON["$"][att] == "http://www.daisy.org/z3986/2005/ncx/"
+                  )
+                    ncxPrefix = ns + ":";
+                }
               }
             }
-          }
 
-          ncx = ncxJSON[ncxPrefix + "ncx"];
+            // grab the correct ns prefix for ncx
+            for (const prop in ncxJSON) {
+              //console.log(prop);
+              if (prop === "$") {
+                // normal parse result
+                setPrefix(ncxJSON);
+              } else {
+                if (typeof ncxJSON[prop]["$"] !== "undefined") {
+                  //console.log(ncxJSON[prop]['$']);
+                  setPrefix(ncxJSON[prop]);
+                }
+              }
+            }
 
-          const navPoints =
-            ncx[ncxPrefix + "navMap"][0][ncxPrefix + "navPoint"];
+            ncx = ncxJSON[ncxPrefix + "ncx"];
 
-          for (let i = 0; i < safeAccess(navPoints).length; i++) {
-            processNavPoint(navPoints[i]);
-          }
-          htmlNav += "</ul>" + "\n";
-          epubdata = getEpubDataBlock();
-          cb(null, epubdata);
-        });
-      }
-    },
+            const navPoints =
+              ncx[ncxPrefix + "navMap"][0][ncxPrefix + "navPoint"];
+
+            for (let i = 0; i < safeAccess(navPoints).length; i++) {
+              processNavPoint(navPoints[i]);
+            }
+            htmlNav += "</ul>" + "\n";
+            epubdata = getEpubDataBlock();
+            cb(null, epubdata);
+          });
+        }
+      },
       (err) => cb(err)
     );
   }
