@@ -2,13 +2,13 @@ import fs from "fs";
 import crypto from "crypto";
 
 import jszip from "node-zip";
-import { Parser } from "xml2js";
+import { Parser, convertableToString } from "xml2js";
 import request from "request";
 
-let zip;
+let zip: { file: (arg0: any) => any };
 const parser = new Parser();
 
-export function extractText(filename) {
+export function extractText(filename: string) {
   //console.log('extracting '+filename);
   const file = zip.file(filename);
   if (typeof file !== "undefined" || file !== null) {
@@ -18,7 +18,7 @@ export function extractText(filename) {
   }
 }
 
-export function extractBinary(filename) {
+export function extractBinary(filename: any) {
   const file = zip.file(filename);
   if (typeof file !== "undefined") {
     return file.asBinary();
@@ -27,7 +27,7 @@ export function extractBinary(filename) {
   }
 }
 
-function safeAccess(supposedArray) {
+function safeAccess(supposedArray: any) {
   // a quick bandaid to handle undefined lists
   // coming back from the parser - poor fix TODO
   if (typeof supposedArray === "undefined") {
@@ -37,7 +37,10 @@ function safeAccess(supposedArray) {
   }
 }
 
-export function open(filename, cb) {
+export function open(
+  filename: fs.PathOrFileDescriptor,
+  cb: (arg0: NodeJS.ErrnoException | null, arg1: null | undefined) => void
+) {
   /*
 
 			"filename" is still called "filename" but now it can be
@@ -47,45 +50,53 @@ export function open(filename, cb) {
 		*/
 
   let epubdata = {};
-  let md5hash;
-  let htmlNav = "<ul>";
+  let md5hash: string;
+  let htmlNav: string|null = "<ul>";
 
-  let container,
-    opf,
-    ncx,
-    opfPath,
-    ncxPath,
-    opsRoot,
-    uniqueIdentifier,
-    uniqueIdentifierValue,
+  let container: {
+      rootfiles: { rootfile: { [x: string]: { [x: string]: any } }[] }[];
+    },
+    opf: { [x: string]: any[] },
+    ncx: { [x: string]: { [x: string]: any }[] },
+    opfPath: any,
+    ncxPath: string,
+    opsRoot: string,
+    uniqueIdentifier: any,
+    uniqueIdentifierValue: string,
     uniqueIdentifierScheme = null,
-    opfDataXML,
-    ncxDataXML,
+    opfDataXML: { toString: () => convertableToString },
+    ncxDataXML: string,
     opfPrefix = "",
     dcPrefix = "",
     ncxPrefix = "",
-    metadata,
-    manifest,
-    spine,
-    guide,
-    nav,
-    root,
-    ns,
-    ncxId,
-    epub3CoverId,
-    epub3NavId,
-    epub3NavHtml,
+    metadata: any,
+    manifest: {
+      [x: string]: { [x: string]: { [x: string]: { href: any } } };
+      item: any;
+    },
+    spine: { itemref: any; $: { toc: any } },
+    guide: any,
+    nav: any,
+    root: string,
+    ns: string,
+    ncxId: any,
+    epub3CoverId: any,
+    epub3NavId: any,
+    epub3NavHtml: convertableToString,
     epub2CoverUrl = null,
-    isEpub3,
-    epubVersion;
-  let itemlist, itemreflist;
+    isEpub3: boolean,
+    epubVersion: string;
+  let itemlist: { [x: string]: any }, itemreflist: { [x: string]: { $: any } };
   const itemHashById = {};
   const itemHashByHref = {};
   const linearSpine = {};
   const spineOrder = [];
   const simpleMeta = [];
 
-  function readAndParseData(/* Buffer */ data, cb) {
+  function readAndParseData(
+    /* Buffer */ data: crypto.BinaryLike | Buffer,
+    cb: (arg0: Error | null, arg1?: any) => void
+  ) {
     md5hash = crypto.createHash("md5").update(data).digest("hex");
 
     zip = new jszip(data.toString("binary"), {
@@ -94,13 +105,16 @@ export function open(filename, cb) {
       checkCRC32: true,
     });
     const containerData = extractText("META-INF/container.xml");
-    parseEpub(containerData, function (err, epubData) {
+    parseEpub(containerData, function (err: any, epubData: any) {
       if (err) return cb(err);
       cb(null, epubData);
     });
   }
 
-  function parseEpub(containerDataXML, finalCallback) {
+  function parseEpub(
+    containerDataXML: convertableToString,
+    cb: (err: Error | null, epubData?: any) => any
+  ): void {
     /*
 		  
 		    Parsing chain walking down the metadata of an epub,
@@ -108,14 +122,18 @@ export function open(filename, cb) {
 		    
 		  */
 
-    parser.parseString(containerDataXML, function (err, containerJSON) {
-      parseContainer(err, containerJSON, finalCallback);
-    });
+    parser.parseStringPromise(containerDataXML).then(
+      (containerJSON: { container: any }) =>
+        parseContainer(null, containerJSON, cb),
+      (err) => cb(err)
+    );
   }
 
-  function parseContainer(err, containerJSON, finalCallback) {
-    const cb = finalCallback;
-
+  function parseContainer(
+    err: Error | null,
+    containerJSON: { container: any },
+    cb: (err: Error | null, epubData?: any) => any
+  ) {
     if (err) return cb(err);
 
     container = containerJSON.container;
@@ -146,8 +164,8 @@ export function open(filename, cb) {
     console.log("parsing OPF data");
     opfDataXML = extractText(root);
 
-    parser.parseString(opfDataXML.toString(), function (err, opfJSON) {
-      if (err) return cb(err);
+    parser.parseStringPromise(opfDataXML.toString()).then(
+    (opfJSON) => {
       // store opf data
       opf = opfJSON["opf:package"]
         ? opfJSON["opf:package"]
@@ -158,7 +176,6 @@ export function open(filename, cb) {
       isEpub3 = epubVersion == "3" || epubVersion == "3.0" ? true : false;
 
       //  console.log('epub version:'+epubVersion);
-
       for (const att in opf["$"]) {
         if (att.match(/^xmlns:/)) {
           ns = att.replace(/^xmlns:/, "");
@@ -172,7 +189,6 @@ export function open(filename, cb) {
       parsePackageElements();
 
       // spine
-
       itemlist = manifest.item;
 
       itemreflist = spine.itemref;
@@ -182,12 +198,10 @@ export function open(filename, cb) {
       buildLinearSpine();
 
       // metadata
-
       buildMetadataLists();
 
       if (!ncxId) {
         // assume epub 3 navigation doc
-
         if (!isEpub3)
           cb(new Error("ncx id not found but package indicates epub 2"));
 
@@ -198,16 +212,16 @@ export function open(filename, cb) {
 
         if (!epub3NavHtml) return cb(new Error("epub 3 with no nav html"));
 
-        parser.parseString(epub3NavHtml, function (err, navJSON) {
-          if (err) return cb(err);
-
+        parser.parseStringPromise(epub3NavHtml).then(
+        (navJSON) => {
           nav = navJSON;
           epubdata = getEpubDataBlock();
           cb(null, epubdata);
-        });
+        },
+          (err) => cb(err)
+        );
       } else {
         // epub 2, use ncx doc
-
         for (const item in manifest[opfPrefix + "item"]) {
           if (manifest[opfPrefix + "item"][item]["$"].id == ncxId) {
             ncxPath = opsRoot + manifest[opfPrefix + "item"][item]["$"].href;
@@ -219,19 +233,22 @@ export function open(filename, cb) {
         parser.parseString(ncxDataXML.toString(), function (err, ncxJSON) {
           if (err) return cb(err);
 
-          function setPrefix(ncxJSON) {
+          function setPrefix(ncxJSON: {
+            [x: string]: { [x: string]: string };
+          }) {
             for (const att in ncxJSON["$"]) {
               //console.log(att);
               if (att.match(/^xmlns:/)) {
                 const ns = att.replace(/^xmlns:/, "");
-                if (ncxJSON["$"][att] == "http://www.daisy.org/z3986/2005/ncx/")
+                if (
+                  ncxJSON["$"][att] == "http://www.daisy.org/z3986/2005/ncx/"
+                )
                   ncxPrefix = ns + ":";
               }
             }
           }
 
           // grab the correct ns prefix for ncx
-
           for (const prop in ncxJSON) {
             //console.log(prop);
             if (prop === "$") {
@@ -258,10 +275,16 @@ export function open(filename, cb) {
           cb(null, epubdata);
         });
       }
-    });
+    },
+      (err) => cb(err)
+    );
   }
 
-  function processNavPoint(np) {
+  function processNavPoint(np: {
+    navLabel: { text: string[] }[];
+    content: { [x: string]: { src: string } }[];
+    navPoint: any[];
+  }) {
     let text = "Untitled";
     let src = "#";
 
