@@ -3,14 +3,9 @@
   "version": "0.2.5",
   "description": "Epub parser",
   "main": "src/index.js",
-  "keywords": [
-    "epub"
-  ],
-  "homepage": "https://github.com/Vaporbook/epub-parser",
-  "bugs": {
-    "email": "aaron@readsocialapi.com"
+  "scripts": {
+    "test": "node ./example/parse.js example/testbook.epub"
   },
-  "author": "Aaron Miller <aaron@readsocialapi.com> (http://twitter.com/vaporbook)",
   "dependencies": {
     "node-zip": ">=0.0.2",
     "xml2js": ">=0.0.1",
@@ -35,12 +30,17 @@
   "directories": {
     "example": "example"
   },
-  "scripts": {
-    "test": "node ./example/parse.js example/testbook.epub"
-  },
+  "keywords": [
+    "epub"
+  ],
   "repository": {
     "type": "git",
     "url": "git://github.com/Vaporbook/epub-parser.git"
   },
+  "homepage": "https://github.com/Vaporbook/epub-parser",
+  "bugs": {
+    "email": "aaron@readsocialapi.com"
+  },
+  "author": "Aaron Miller <aaron@readsocialapi.com> (http://twitter.com/vaporbook)",
   "license": "BSD"
 }
