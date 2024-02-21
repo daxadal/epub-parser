@@ -17,9 +17,20 @@
     "eyes": "~0.1.8"
   },
   "devDependencies": {
+    "eslint": "^8.0.0",
+    "eslint-config-airbnb": "^19.0.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-import-resolver-typescript": "^3.0.0",
+    "eslint-plugin-import": "^2.23.3",
+    "eslint-plugin-prettier": "^4.2.1",
+    "jest": "^28.0.0",
+    "jest-junit": "^14.0.0",
+    "prettier": "^2.3.0",
+    "ts-jest": "^28.0.0",
+    "ts-node": "^10.4.0",
+    "typescript": "^4.2.3",
     "vows": "0.5.x"
   },
-  "main": "index.js",
   "directories": {
     "example": "example"
   },
