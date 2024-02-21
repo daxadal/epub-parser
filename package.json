@@ -2,6 +2,7 @@
   "name": "epub-parser",
   "version": "0.2.5",
   "description": "Epub parser",
+  "main": "src/index.js",
   "keywords": [
     "epub"
   ],
