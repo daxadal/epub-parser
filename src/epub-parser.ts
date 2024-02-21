@@ -8,7 +8,7 @@ import request from "request";
 let zip;
 const parser = new Parser();
 
-function extractText(filename) {
+export function extractText(filename) {
   //console.log('extracting '+filename);
   const file = zip.file(filename);
   if (typeof file !== "undefined" || file !== null) {
@@ -18,7 +18,7 @@ function extractText(filename) {
   }
 }
 
-function extractBinary(filename) {
+export function extractBinary(filename) {
   const file = zip.file(filename);
   if (typeof file !== "undefined") {
     return file.asBinary();
@@ -37,7 +37,7 @@ function safeAccess(supposedArray) {
   }
 }
 
-function open(filename, cb) {
+export function open(filename, cb) {
   /*
 
 			"filename" is still called "filename" but now it can be
@@ -518,14 +518,9 @@ function open(filename, cb) {
   }
 } // end #open function definition block
 
-export = {
-  open: open,
-  getZip: function () {
-    return zip;
-  },
-  getJsZip: function () {
-    return jszip;
-  },
-  extractBinary: extractBinary,
-  extractText: extractText,
-};
+export function getZip() {
+  return zip;
+}
+export function getJsZip() {
+  return jszip;
+}

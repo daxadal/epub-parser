@@ -1,1 +1,1 @@
-export { default } from "./epub-parser";
+export * from "./epub-parser";
