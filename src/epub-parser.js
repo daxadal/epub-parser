@@ -1,16 +1,16 @@
-var EpubParser;
-//var sax = require('./sax');
+const fs = require("fs");
+const crypto = require("crypto");
 
-var jszip = require("node-zip");
-var zip, zipEntries;
-var xml2js = require("xml2js");
-var parser = new xml2js.Parser();
-var request = require("request");
-var fs = require("fs");
+const jszip = require("node-zip");
+const xml2js = require("xml2js");
+const request = require("request");
+
+let zip, zipEntries;
+const parser = new xml2js.Parser();
 
 function extractText(filename) {
   //console.log('extracting '+filename);
-  var file = zip.file(filename);
+  const file = zip.file(filename);
   if (typeof file !== "undefined" || file !== null) {
     return file.asText();
   } else {
@@ -19,7 +19,7 @@ function extractText(filename) {
 }
 
 function extractBinary(filename) {
-  var file = zip.file(filename);
+  const file = zip.file(filename);
   if (typeof file !== "undefined") {
     return file.asBinary();
   } else {
@@ -31,7 +31,7 @@ function safeAccess(supposedArray) {
   // a quick bandaid to handle undefined lists
   // coming back from the parser - poor fix TODO
   if (typeof supposedArray === "undefined") {
-    return new Array();
+    return [];
   } else {
     return supposedArray;
   }
@@ -46,11 +46,11 @@ function open(filename, cb) {
 
 		*/
 
-  var epubdata = {};
-  var md5hash;
-  var htmlNav = "<ul>";
+  let epubdata = {};
+  let md5hash;
+  let htmlNav = "<ul>";
 
-  var container,
+  let container,
     opf,
     ncx,
     opfPath,
@@ -78,22 +78,22 @@ function open(filename, cb) {
     epub2CoverUrl = null,
     isEpub3,
     epubVersion;
-  var itemlist, itemreflist;
-  var itemHashById = {};
-  var itemHashByHref = {};
-  var linearSpine = {};
-  var spineOrder = [];
-  var simpleMeta = [];
+  let itemlist, itemreflist;
+  const itemHashById = {};
+  const itemHashByHref = {};
+  const linearSpine = {};
+  const spineOrder = [];
+  const simpleMeta = [];
 
   function readAndParseData(/* Buffer */ data, cb) {
-    md5hash = require("crypto").createHash("md5").update(data).digest("hex");
+    md5hash = crypto.createHash("md5").update(data).digest("hex");
 
     zip = new jszip(data.toString("binary"), {
       binary: true,
       base64: false,
       checkCRC32: true,
     });
-    var containerData = extractText("META-INF/container.xml");
+    const containerData = extractText("META-INF/container.xml");
     parseEpub(containerData, function (err, epubData) {
       if (err) return cb(err);
       cb(null, epubData);
@@ -114,7 +114,7 @@ function open(filename, cb) {
   }
 
   function parseContainer(err, containerJSON, finalCallback) {
-    var cb = finalCallback;
+    const cb = finalCallback;
 
     if (err) return cb(err);
 
@@ -127,7 +127,7 @@ function open(filename, cb) {
     // set the opsRoot for resolving paths
     if (root.match(/\//)) {
       // not at top level
-      opsRoot = root.replace(/\/([^\/]+)\.opf/i, "");
+      opsRoot = root.replace(/\/([^/]+)\.opf/i, "");
       if (!opsRoot.match(/\/$/)) {
         // does not end in slash, but we want it to
         opsRoot += "/";
@@ -159,9 +159,9 @@ function open(filename, cb) {
 
       //  console.log('epub version:'+epubVersion);
 
-      for (att in opf["$"]) {
-        if (att.match(/^xmlns\:/)) {
-          ns = att.replace(/^xmlns\:/, "");
+      for (const att in opf["$"]) {
+        if (att.match(/^xmlns:/)) {
+          ns = att.replace(/^xmlns:/, "");
           if (opf["$"][att] == "http://www.idpf.org/2007/opf")
             opfPrefix = ns + ":";
           if (opf["$"][att] == "http://purl.org/dc/elements/1.1/")
@@ -208,7 +208,7 @@ function open(filename, cb) {
       } else {
         // epub 2, use ncx doc
 
-        for (item in manifest[opfPrefix + "item"]) {
+        for (const item in manifest[opfPrefix + "item"]) {
           if (manifest[opfPrefix + "item"][item]["$"].id == ncxId) {
             ncxPath = opsRoot + manifest[opfPrefix + "item"][item]["$"].href;
           }
@@ -220,10 +220,10 @@ function open(filename, cb) {
           if (err) return cb(err);
 
           function setPrefix(ncxJSON) {
-            for (att in ncxJSON["$"]) {
+            for (const att in ncxJSON["$"]) {
               //console.log(att);
-              if (att.match(/^xmlns\:/)) {
-                var ns = att.replace(/^xmlns\:/, "");
+              if (att.match(/^xmlns:/)) {
+                const ns = att.replace(/^xmlns:/, "");
                 if (ncxJSON["$"][att] == "http://www.daisy.org/z3986/2005/ncx/")
                   ncxPrefix = ns + ":";
               }
@@ -232,7 +232,7 @@ function open(filename, cb) {
 
           // grab the correct ns prefix for ncx
 
-          for (prop in ncxJSON) {
+          for (const prop in ncxJSON) {
             //console.log(prop);
             if (prop === "$") {
               // normal parse result
@@ -247,9 +247,10 @@ function open(filename, cb) {
 
           ncx = ncxJSON[ncxPrefix + "ncx"];
 
-          var navPoints = ncx[ncxPrefix + "navMap"][0][ncxPrefix + "navPoint"];
+          const navPoints =
+            ncx[ncxPrefix + "navMap"][0][ncxPrefix + "navPoint"];
 
-          for (var i = 0; i < safeAccess(navPoints).length; i++) {
+          for (let i = 0; i < safeAccess(navPoints).length; i++) {
             processNavPoint(navPoints[i]);
           }
           htmlNav += "</ul>" + "\n";
@@ -261,8 +262,8 @@ function open(filename, cb) {
   }
 
   function processNavPoint(np) {
-    var text = "Untitled";
-    var src = "#";
+    let text = "Untitled";
+    let src = "#";
 
     if (typeof np.navLabel !== "undefined") {
       text = np.navLabel[0].text[0];
@@ -275,7 +276,7 @@ function open(filename, cb) {
 
     if (typeof np.navPoint !== "undefined") {
       htmlNav += "<ul>";
-      for (var i = 0; i < safeAccess(np.navPoint).length; i++) {
+      for (let i = 0; i < safeAccess(np.navPoint).length; i++) {
         processNavPoint(np.navPoint[i]);
       }
       htmlNav += "</ul>" + "\n";
@@ -284,11 +285,11 @@ function open(filename, cb) {
   }
 
   function buildItemHashes() {
-    for (item in itemlist) {
-      var href = itemlist[item].$.href;
-      var id = itemlist[item].$.id;
-      var mediaType = itemlist[item].$["media-type"];
-      var properties = itemlist[item].$["properties"];
+    for (const item in itemlist) {
+      const href = itemlist[item].$.href;
+      const id = itemlist[item].$.id;
+      const mediaType = itemlist[item].$["media-type"];
+      const properties = itemlist[item].$["properties"];
       if (typeof properties !== "undefined") {
         if (properties == "cover-image") {
           epub3CoverId = id;
@@ -300,7 +301,7 @@ function open(filename, cb) {
       itemHashByHref[href] = itemlist[item];
       itemHashById[id] = itemlist[item];
     }
-    var itemrefs = itemreflist;
+    const itemrefs = itemreflist;
 
     try {
       ncxId = spine.$.toc;
@@ -308,8 +309,8 @@ function open(filename, cb) {
   }
 
   function buildLinearSpine() {
-    for (itemref in itemreflist) {
-      var id = itemreflist[itemref].$.idref;
+    for (const itemref in itemreflist) {
+      const id = itemreflist[itemref].$.idref;
 
       spineOrder.push(itemreflist[itemref].$);
 
@@ -324,20 +325,20 @@ function open(filename, cb) {
   }
 
   function buildMetadataLists() {
-    var metas = metadata;
-    for (prop in metas) {
+    const metas = metadata;
+    for (const prop in metas) {
       if (prop == "meta") {
         // process a list of meta tags
 
-        for (var i = 0; i < safeAccess(metas[prop]).length; i++) {
-          var m = metas[prop][i].$;
+        for (let i = 0; i < safeAccess(metas[prop]).length; i++) {
+          const m = metas[prop][i].$;
 
           if (typeof m.name !== "undefined") {
-            var md = {};
+            const md = {};
             md[m.name] = m.content;
             simpleMeta.push(md);
           } else if (typeof m.property !== "undefined") {
-            var md = {};
+            const md = {};
             md[m.property] = metas[prop][i]._;
             simpleMeta.push(md);
           }
@@ -349,8 +350,8 @@ function open(filename, cb) {
           }
         }
       } else if (prop != "$") {
-        var content = "";
-        var atts = {};
+        let content = "";
+        const atts = {};
         if (metas[prop][0]) {
           if (metas[prop][0].$ || metas[prop][0]._) {
             // complex tag
@@ -358,7 +359,7 @@ function open(filename, cb) {
 
             if (metas[prop][0].$) {
               // has attributes
-              for (att in metas[prop][0].$) {
+              for (const att in metas[prop][0].$) {
                 atts[att] = metas[prop][0].$[att];
               }
             }
@@ -368,7 +369,7 @@ function open(filename, cb) {
           }
         }
         if (typeof prop !== "undefined") {
-          var md = {};
+          const md = {};
           md[prop] = content;
           simpleMeta.push(md);
         }
@@ -456,7 +457,6 @@ function open(filename, cb) {
         linearSpine: linearSpine,
         itemHashById: itemHashById,
         itemHashByHref: itemHashByHref,
-        linearSpine: linearSpine,
         simpleMeta: simpleMeta,
         epub3CoverId: epub3CoverId,
         epub3NavId: epub3NavId,
@@ -501,7 +501,7 @@ function open(filename, cb) {
       },
       function (error, response, body) {
         if (!error && response.statusCode == 200) {
-          var b = body;
+          const b = body;
 
           readAndParseData(b, cb);
         } else {
