@@ -4,7 +4,6 @@
   "description": "Epub parser",
   "main": "src/index.js",
   "scripts": {
-    "test": "node ./example/parse.js example/testbook.epub"
   },
   "dependencies": {
     "node-zip": ">=0.0.2",
