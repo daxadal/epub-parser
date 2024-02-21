@@ -2,7 +2,6 @@ var EpubParser;
 //var sax = require('./sax');
 
 
-EpubParser = (function() {
 
 
 	var jszip = require('node-zip');
@@ -545,7 +544,10 @@ EpubParser = (function() {
 	} // end #open function definition block
 
 
-	return {
+
+
+
+module.exports = {
 		open:open,
 		getZip:function () { return zip; },
 		getJsZip: function () { return jszip; },
@@ -553,5 +555,4 @@ EpubParser = (function() {
 		extractText: extractText
 	};
 
-})();
-module.exports = EpubParser;
+
