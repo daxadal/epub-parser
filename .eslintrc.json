@@ -19,18 +19,12 @@
     "@typescript-eslint/no-explicit-any": "off",
     "import/order": ["warn", { "newlines-between": "always" }],
     "prettier/prettier": ["warn"],
+    "prefer-const": "warn",
     "no-console": "off"
   },
   "settings": {
     "import/resolver": {
-      "node": {
-        "paths": ["src"],
-        "extensions": [".js", ".jsx", ".ts", ".tsx"]
-      },
-      "typescript": {
-        "alwaysTryTypes": true,
-        "paths": "./tsconfig.json"
-      }
+      "typescript": {}
     }
   }
 }
