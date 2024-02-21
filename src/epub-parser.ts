@@ -1,12 +1,12 @@
-const fs = require("fs");
-const crypto = require("crypto");
+import fs from "fs";
+import crypto from "crypto";
 
-const jszip = require("node-zip");
-const xml2js = require("xml2js");
-const request = require("request");
+import jszip from "node-zip";
+import { Parser } from "xml2js";
+import request from "request";
 
-let zip, zipEntries;
-const parser = new xml2js.Parser();
+let zip;
+const parser = new Parser();
 
 function extractText(filename) {
   //console.log('extracting '+filename);
@@ -288,7 +288,6 @@ function open(filename, cb) {
     for (const item in itemlist) {
       const href = itemlist[item].$.href;
       const id = itemlist[item].$.id;
-      const mediaType = itemlist[item].$["media-type"];
       const properties = itemlist[item].$["properties"];
       if (typeof properties !== "undefined") {
         if (properties == "cover-image") {
@@ -301,7 +300,6 @@ function open(filename, cb) {
       itemHashByHref[href] = itemlist[item];
       itemHashById[id] = itemlist[item];
     }
-    const itemrefs = itemreflist;
 
     try {
       ncxId = spine.$.toc;
@@ -520,7 +518,7 @@ function open(filename, cb) {
   }
 } // end #open function definition block
 
-module.exports = {
+export = {
   open: open,
   getZip: function () {
     return zip;
