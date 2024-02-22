@@ -27,16 +27,6 @@ export function extractBinary(filename: any) {
   }
 }
 
-function safeAccess(supposedArray: any) {
-  // a quick bandaid to handle undefined lists
-  // coming back from the parser - poor fix TODO
-  if (typeof supposedArray === "undefined") {
-    return [];
-  } else {
-    return supposedArray;
-  }
-}
-
 export async function open(filename: PathLike | FileHandle): Promise<unknown> {
   return new Promise(async (resolve, reject) => {
     /*
@@ -263,7 +253,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
                 const navPoints =
                   ncx[ncxPrefix + "navMap"][0][ncxPrefix + "navPoint"];
 
-                for (let i = 0; i < safeAccess(navPoints).length; i++) {
+                for (let i = 0; i < (navPoints ?? []).length; i++) {
                   processNavPoint(navPoints[i]);
                 }
                 htmlNav += "</ul>" + "\n";
@@ -297,7 +287,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
 
       if (typeof np.navPoint !== "undefined") {
         htmlNav += "<ul>";
-        for (let i = 0; i < safeAccess(np.navPoint).length; i++) {
+        for (let i = 0; i < (np.navPoint ?? []).length; i++) {
           processNavPoint(np.navPoint[i]);
         }
         htmlNav += "</ul>" + "\n";
@@ -349,7 +339,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
         if (prop == "meta") {
           // process a list of meta tags
 
-          for (let i = 0; i < safeAccess(metas[prop]).length; i++) {
+          for (let i = 0; i < (metas[prop] ?? []).length; i++) {
             const m = metas[prop][i].$;
 
             if (typeof m.name !== "undefined") {
