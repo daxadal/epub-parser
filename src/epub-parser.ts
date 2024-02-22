@@ -5,7 +5,7 @@ import jszip from "jszip";
 import { Parser, convertableToString } from "xml2js";
 import request from "request";
 
-let zip: { file: (arg0: any) => any };
+let zip;
 const parser = new Parser();
 
 export function extractText(filename: string) {
@@ -230,50 +230,52 @@ export function open(
           //console.log('determined ncxPath:'+ncxPath);
           ncxDataXML = extractText(ncxPath);
 
-          parser.parseString(ncxDataXML.toString(), function (err, ncxJSON) {
-            if (err) return cb(err);
-
-            function setPrefix(ncxJSON: {
-              [x: string]: { [x: string]: string };
-            }) {
-              for (const att in ncxJSON["$"]) {
-                //console.log(att);
-                if (att.match(/^xmlns:/)) {
-                  const ns = att.replace(/^xmlns:/, "");
-                  if (
-                    ncxJSON["$"][att] == "http://www.daisy.org/z3986/2005/ncx/"
-                  )
-                    ncxPrefix = ns + ":";
+          parser.parseStringPromise(ncxDataXML.toString()).then(
+            (ncxJSON) => {
+              function setPrefix(ncxJSON: {
+                [x: string]: { [x: string]: string };
+              }) {
+                for (const att in ncxJSON["$"]) {
+                  //console.log(att);
+                  if (att.match(/^xmlns:/)) {
+                    const ns = att.replace(/^xmlns:/, "");
+                    if (
+                      ncxJSON["$"][att] ==
+                      "http://www.daisy.org/z3986/2005/ncx/"
+                    )
+                      ncxPrefix = ns + ":";
+                  }
                 }
               }
-            }
 
-            // grab the correct ns prefix for ncx
-            for (const prop in ncxJSON) {
-              //console.log(prop);
-              if (prop === "$") {
-                // normal parse result
-                setPrefix(ncxJSON);
-              } else {
-                if (typeof ncxJSON[prop]["$"] !== "undefined") {
-                  //console.log(ncxJSON[prop]['$']);
-                  setPrefix(ncxJSON[prop]);
+              // grab the correct ns prefix for ncx
+              for (const prop in ncxJSON) {
+                //console.log(prop);
+                if (prop === "$") {
+                  // normal parse result
+                  setPrefix(ncxJSON);
+                } else {
+                  if (typeof ncxJSON[prop]["$"] !== "undefined") {
+                    //console.log(ncxJSON[prop]['$']);
+                    setPrefix(ncxJSON[prop]);
+                  }
                 }
               }
-            }
 
-            ncx = ncxJSON[ncxPrefix + "ncx"];
+              ncx = ncxJSON[ncxPrefix + "ncx"];
 
-            const navPoints =
-              ncx[ncxPrefix + "navMap"][0][ncxPrefix + "navPoint"];
+              const navPoints =
+                ncx[ncxPrefix + "navMap"][0][ncxPrefix + "navPoint"];
 
-            for (let i = 0; i < safeAccess(navPoints).length; i++) {
-              processNavPoint(navPoints[i]);
-            }
-            htmlNav += "</ul>" + "\n";
-            epubdata = getEpubDataBlock();
-            cb(null, epubdata);
-          });
+              for (let i = 0; i < safeAccess(navPoints).length; i++) {
+                processNavPoint(navPoints[i]);
+              }
+              htmlNav += "</ul>" + "\n";
+              epubdata = getEpubDataBlock();
+              cb(null, epubdata);
+            },
+            (err) => cb(err)
+          );
         }
       },
       (err) => cb(err)
