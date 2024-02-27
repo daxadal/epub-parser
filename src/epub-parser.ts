@@ -94,33 +94,29 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
         checkCRC32: true,
       });
       const containerData = extractText("META-INF/container.xml");
-      parseEpub(containerData, function (err: any, epubData: any) {
-        if (err) return cb(err);
-        cb(null, epubData);
-      });
+
+      parseEpub(containerData).then(
+        (epubData) => cb(null, epubData),
+        (err) => cb(err)
+      );
     }
 
     async function parseEpub(
-      containerDataXML: convertableToString,
-      cb: (err: Error | null, epubData?: any) => any
-    ): Promise<void> {
+      containerDataXML: convertableToString
+    ): Promise<any> {
       /*
       Parsing chain walking down the metadata of an epub,
       and storing it in the JSON config object
     */
-      try {
-        const containerJSON = await parser.parseStringPromise(containerDataXML);
-        parseContainer(null, containerJSON, cb);
-      } catch (err: any) {
-        cb(err);
-      }
+
+      const containerJSON = await parser.parseStringPromise(containerDataXML);
+      const epubData = await parseContainer(containerJSON);
+      return epubData;
     }
 
-    function parseContainer(
-      err: Error | null,
-      containerJSON: { container: any },
-      cb: (err: Error | null, epubData?: any) => any
-    ) {
+    async function parseContainer(containerJSON: {
+      container: any;
+    }): Promise<any> {
       container = containerJSON.container;
 
       // determine location of OPF
@@ -149,123 +145,107 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
       console.log("parsing OPF data");
       opfDataXML = extractText(root);
 
-      parser.parseStringPromise(opfDataXML.toString()).then(
-        (opfJSON) => {
-          // store opf data
-          opf = opfJSON["opf:package"]
-            ? opfJSON["opf:package"]
-            : opfJSON["package"];
-          uniqueIdentifier = opf["$"]["unique-identifier"];
-          epubVersion = opf["$"]["version"][0];
+      const opfJSON = await parser.parseStringPromise(opfDataXML.toString());
 
-          isEpub3 = epubVersion == "3" || epubVersion == "3.0" ? true : false;
+      // store opf data
+      opf = opfJSON["opf:package"]
+        ? opfJSON["opf:package"]
+        : opfJSON["package"];
+      uniqueIdentifier = opf["$"]["unique-identifier"];
+      epubVersion = opf["$"]["version"][0];
 
-          //  console.log('epub version:'+epubVersion);
-          for (const att in opf["$"]) {
+      isEpub3 = epubVersion == "3" || epubVersion == "3.0" ? true : false;
+
+      //  console.log('epub version:'+epubVersion);
+      for (const att in opf["$"]) {
+        if (att.match(/^xmlns:/)) {
+          ns = att.replace(/^xmlns:/, "");
+          if (opf["$"][att] == "http://www.idpf.org/2007/opf")
+            opfPrefix = ns + ":";
+          if (opf["$"][att] == "http://purl.org/dc/elements/1.1/")
+            dcPrefix = ns + ":";
+        }
+      }
+
+      parsePackageElements();
+
+      // spine
+      itemlist = manifest.item;
+
+      itemreflist = spine.itemref;
+
+      buildItemHashes();
+
+      buildLinearSpine();
+
+      // metadata
+      buildMetadataLists();
+
+      if (!ncxId) {
+        // assume epub 3 navigation doc
+        if (!isEpub3)
+          throw new Error("ncx id not found but package indicates epub 2");
+
+        ncxDataXML = "";
+        ncx = {};
+        ncxPath = "";
+        htmlNav = null;
+
+        if (!epub3NavHtml) throw new Error("epub 3 with no nav html");
+
+        const navJSON = await parser.parseStringPromise(epub3NavHtml);
+
+        nav = navJSON;
+        epubdata = getEpubDataBlock();
+        return epubdata;
+      } else {
+        // epub 2, use ncx doc
+        for (const item in manifest[opfPrefix + "item"]) {
+          if (manifest[opfPrefix + "item"][item]["$"].id == ncxId) {
+            ncxPath = opsRoot + manifest[opfPrefix + "item"][item]["$"].href;
+          }
+        }
+        //console.log('determined ncxPath:'+ncxPath);
+        ncxDataXML = extractText(ncxPath);
+
+        const ncxJSON = await parser.parseStringPromise(ncxDataXML.toString());
+
+        function setPrefix(ncxJSON: { [x: string]: { [x: string]: string } }) {
+          for (const att in ncxJSON["$"]) {
+            //console.log(att);
             if (att.match(/^xmlns:/)) {
-              ns = att.replace(/^xmlns:/, "");
-              if (opf["$"][att] == "http://www.idpf.org/2007/opf")
-                opfPrefix = ns + ":";
-              if (opf["$"][att] == "http://purl.org/dc/elements/1.1/")
-                dcPrefix = ns + ":";
+              const ns = att.replace(/^xmlns:/, "");
+              if (ncxJSON["$"][att] == "http://www.daisy.org/z3986/2005/ncx/")
+                ncxPrefix = ns + ":";
             }
           }
+        }
 
-          parsePackageElements();
-
-          // spine
-          itemlist = manifest.item;
-
-          itemreflist = spine.itemref;
-
-          buildItemHashes();
-
-          buildLinearSpine();
-
-          // metadata
-          buildMetadataLists();
-
-          if (!ncxId) {
-            // assume epub 3 navigation doc
-            if (!isEpub3)
-              cb(new Error("ncx id not found but package indicates epub 2"));
-
-            ncxDataXML = "";
-            ncx = {};
-            ncxPath = "";
-            htmlNav = null;
-
-            if (!epub3NavHtml) return cb(new Error("epub 3 with no nav html"));
-
-            parser.parseStringPromise(epub3NavHtml).then(
-              (navJSON) => {
-                nav = navJSON;
-                epubdata = getEpubDataBlock();
-                cb(null, epubdata);
-              },
-              (err) => cb(err)
-            );
+        // grab the correct ns prefix for ncx
+        for (const prop in ncxJSON) {
+          //console.log(prop);
+          if (prop === "$") {
+            // normal parse result
+            setPrefix(ncxJSON);
           } else {
-            // epub 2, use ncx doc
-            for (const item in manifest[opfPrefix + "item"]) {
-              if (manifest[opfPrefix + "item"][item]["$"].id == ncxId) {
-                ncxPath =
-                  opsRoot + manifest[opfPrefix + "item"][item]["$"].href;
-              }
+            if (typeof ncxJSON[prop]["$"] !== "undefined") {
+              //console.log(ncxJSON[prop]['$']);
+              setPrefix(ncxJSON[prop]);
             }
-            //console.log('determined ncxPath:'+ncxPath);
-            ncxDataXML = extractText(ncxPath);
-
-            parser.parseStringPromise(ncxDataXML.toString()).then(
-              (ncxJSON) => {
-                function setPrefix(ncxJSON: {
-                  [x: string]: { [x: string]: string };
-                }) {
-                  for (const att in ncxJSON["$"]) {
-                    //console.log(att);
-                    if (att.match(/^xmlns:/)) {
-                      const ns = att.replace(/^xmlns:/, "");
-                      if (
-                        ncxJSON["$"][att] ==
-                        "http://www.daisy.org/z3986/2005/ncx/"
-                      )
-                        ncxPrefix = ns + ":";
-                    }
-                  }
-                }
-
-                // grab the correct ns prefix for ncx
-                for (const prop in ncxJSON) {
-                  //console.log(prop);
-                  if (prop === "$") {
-                    // normal parse result
-                    setPrefix(ncxJSON);
-                  } else {
-                    if (typeof ncxJSON[prop]["$"] !== "undefined") {
-                      //console.log(ncxJSON[prop]['$']);
-                      setPrefix(ncxJSON[prop]);
-                    }
-                  }
-                }
-
-                ncx = ncxJSON[ncxPrefix + "ncx"];
-
-                const navPoints =
-                  ncx[ncxPrefix + "navMap"][0][ncxPrefix + "navPoint"];
-
-                for (let i = 0; i < (navPoints ?? []).length; i++) {
-                  processNavPoint(navPoints[i]);
-                }
-                htmlNav += "</ul>" + "\n";
-                epubdata = getEpubDataBlock();
-                cb(null, epubdata);
-              },
-              (err) => cb(err)
-            );
           }
-        },
-        (err) => cb(err)
-      );
+        }
+
+        ncx = ncxJSON[ncxPrefix + "ncx"];
+
+        const navPoints = ncx[ncxPrefix + "navMap"][0][ncxPrefix + "navPoint"];
+
+        for (let i = 0; i < (navPoints ?? []).length; i++) {
+          processNavPoint(navPoints[i]);
+        }
+        htmlNav += "</ul>" + "\n";
+        epubdata = getEpubDataBlock();
+        return epubdata;
+      }
     }
 
     function processNavPoint(np: {
