@@ -213,15 +213,13 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
         function setPrefix(ncxJSON: {
           [x: string]: { [x: string]: string };
         }): string {
-          for (const att in ncxJSON["$"]) {
-            //console.log(att);
-            if (att.match(/^xmlns:/)) {
-              const ns = att.replace(/^xmlns:/, "");
-              if (ncxJSON["$"][att] == "http://www.daisy.org/z3986/2005/ncx/")
-                return ns + ":";
+          const foundEntry = Object.entries(ncxJSON["$"]).find(
+            ([att, value]) => {
+              att.match(/^xmlns:/) &&
+                value == "http://www.daisy.org/z3986/2005/ncx/";
             }
-          }
-          return "";
+          );
+          return foundEntry ? foundEntry[0].replace(/^xmlns:/, "") + ":" : "";
         }
 
         // grab the correct ns prefix for ncx
