@@ -210,15 +210,18 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
 
         const ncxJSON = await parser.parseStringPromise(ncxDataXML.toString());
 
-        function setPrefix(ncxJSON: { [x: string]: { [x: string]: string } }) {
+        function setPrefix(ncxJSON: {
+          [x: string]: { [x: string]: string };
+        }): string {
           for (const att in ncxJSON["$"]) {
             //console.log(att);
             if (att.match(/^xmlns:/)) {
               const ns = att.replace(/^xmlns:/, "");
               if (ncxJSON["$"][att] == "http://www.daisy.org/z3986/2005/ncx/")
-                ncxPrefix = ns + ":";
+                return ns + ":";
             }
           }
+          return "";
         }
 
         // grab the correct ns prefix for ncx
@@ -226,11 +229,11 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
           //console.log(prop);
           if (prop === "$") {
             // normal parse result
-            setPrefix(ncxJSON);
+            ncxPrefix = setPrefix(ncxJSON);
           } else {
             if (typeof ncxJSON[prop]["$"] !== "undefined") {
               //console.log(ncxJSON[prop]['$']);
-              setPrefix(ncxJSON[prop]);
+              ncxPrefix = setPrefix(ncxJSON[prop]);
             }
           }
         }
