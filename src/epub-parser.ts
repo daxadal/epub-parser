@@ -210,31 +210,26 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
 
         const ncxJSON = await parser.parseStringPromise(ncxDataXML.toString());
 
-        function setPrefix(ncxJSON: {
-          [x: string]: { [x: string]: string };
-        }): string {
-          const foundEntry = Object.entries(ncxJSON["$"]).find(
-            ([att, value]) => {
-              att.match(/^xmlns:/) &&
-                value == "http://www.daisy.org/z3986/2005/ncx/";
-            }
-          );
+        function setPrefix(attrs: { [x: string]: string }): string {
+          const foundEntry = Object.entries(attrs).find(([att, value]) => {
+            att.match(/^xmlns:/) &&
+              value == "http://www.daisy.org/z3986/2005/ncx/";
+          });
           return foundEntry ? foundEntry[0].replace(/^xmlns:/, "") + ":" : "";
         }
 
         // grab the correct ns prefix for ncx
-        for (const prop in ncxJSON) {
-          //console.log(prop);
-          if (prop === "$") {
-            // normal parse result
-            ncxPrefix = setPrefix(ncxJSON);
-          } else {
-            if (typeof ncxJSON[prop]["$"] !== "undefined") {
-              //console.log(ncxJSON[prop]['$']);
-              ncxPrefix = setPrefix(ncxJSON[prop]);
-            }
-          }
+
+        let attrs;
+        if (ncxJSON["$"]) attrs = ncxJSON["$"];
+        else {
+          const foundProp = Object.keys(ncxJSON).find(
+            (prop) => ncxJSON[prop]["$"]
+          );
+          attrs = foundProp ? ncxJSON[foundProp]["$"] : undefined;
         }
+
+        ncxPrefix = attrs ? setPrefix(attrs) : "";
 
         ncx = ncxJSON[ncxPrefix + "ncx"];
 
