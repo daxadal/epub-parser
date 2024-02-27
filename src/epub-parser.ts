@@ -152,7 +152,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
       uniqueIdentifier = opf["$"]["unique-identifier"];
       epubVersion = opf["$"]["version"][0];
 
-      isEpub3 = epubVersion === "3" || epubVersion === "3.0" ;
+      isEpub3 = epubVersion === "3" || epubVersion === "3.0";
 
       //  console.log('epub version:'+epubVersion);
       for (const att in opf["$"]) {
@@ -165,6 +165,53 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
         }
       }
 
+      function parsePackageElements() {
+        // operates on global vars
+
+        if (typeof opf[opfPrefix + "manifest"] === "undefined") {
+          // it's a problem
+          // gutenberg files, for example will lead to this condition
+          // we must assume that tags are not actually namespaced
+
+          opfPrefix = "";
+        }
+
+        try {
+          metadata = opf[opfPrefix + "metadata"][0];
+        } catch (e) {
+          console.log("metadata element error: " + e.message);
+          console.log(
+            "are the tags really namespaced with " +
+              opfPrefix +
+              " or not? file indicates they should be."
+          );
+        }
+        try {
+          manifest = opf[opfPrefix + "manifest"][0];
+        } catch (e) {
+          console.log("manifest element error: " + e.message);
+          console.log(
+            "are the tags really namespaced with " +
+              opfPrefix +
+              " or not? file indicates they should be."
+          );
+          console.log(opfDataXML);
+          console.log(opf);
+          console.log("must throw this - unrecoverable");
+          throw e;
+        }
+        try {
+          spine = opf[opfPrefix + "spine"][0];
+        } catch (e) {
+          console.log("spine element error: " + e.message);
+          console.log("must throw this");
+          throw e;
+        }
+        try {
+          guide = opf[opfPrefix + "guide"][0];
+        } catch (e) {}
+      }
+
       parsePackageElements();
 
       // spine
@@ -172,9 +219,118 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
 
       itemreflist = spine.itemref;
 
+      function buildItemHashes() {
+        for (const item in itemlist) {
+          const href = itemlist[item].$.href;
+          const id = itemlist[item].$.id;
+          const properties = itemlist[item].$["properties"];
+          if (typeof properties !== "undefined") {
+            if (properties == "cover-image") {
+              epub3CoverId = id;
+            } else if (properties == "nav") {
+              epub3NavId = id;
+              epub3NavHtml = extractText(opsRoot + href);
+            }
+          }
+          itemHashByHref[href] = itemlist[item];
+          itemHashById[id] = itemlist[item];
+        }
+
+        try {
+          ncxId = spine.$.toc;
+        } catch (e) {}
+      }
+
       buildItemHashes();
 
+      function buildLinearSpine() {
+        for (const itemref in itemreflist) {
+          const id = itemreflist[itemref].$.idref;
+
+          spineOrder.push(itemreflist[itemref].$);
+
+          if (
+            itemreflist[itemref].$.linear == "yes" ||
+            typeof itemreflist[itemref].$.linear == "undefined"
+          ) {
+            itemreflist[itemref].$.item = itemHashById[id];
+            linearSpine[id] = itemreflist[itemref].$;
+          }
+        }
+      }
+
       buildLinearSpine();
+
+      function buildMetadataLists() {
+        const metas = metadata;
+        for (const prop in metas) {
+          if (prop == "meta") {
+            // process a list of meta tags
+
+            for (let i = 0; i < (metas[prop] ?? []).length; i++) {
+              const m = metas[prop][i].$;
+
+              if (typeof m.name !== "undefined") {
+                const md = {};
+                md[m.name] = m.content;
+                simpleMeta.push(md);
+              } else if (typeof m.property !== "undefined") {
+                const md = {};
+                md[m.property] = metas[prop][i]._;
+                simpleMeta.push(md);
+              }
+
+              if (m.name == "cover") {
+                if (typeof itemHashById[m.content] !== "undefined") {
+                  epub2CoverUrl = opsRoot + itemHashById[m.content].$.href;
+                }
+              }
+            }
+          } else if (prop != "$") {
+            let content = "";
+            const atts = {};
+            if (metas[prop][0]) {
+              if (metas[prop][0].$ || metas[prop][0]._) {
+                // complex tag
+                content = metas[prop][0]._ ? metas[prop][0]._ : metas[prop][0];
+
+                if (metas[prop][0].$) {
+                  // has attributes
+                  for (const att in metas[prop][0].$) {
+                    atts[att] = metas[prop][0].$[att];
+                  }
+                }
+              } else {
+                // simple one, if object, assume empty
+                content =
+                  typeof metas[prop][0] == "object" ? "" : metas[prop][0];
+              }
+            }
+            if (typeof prop !== "undefined") {
+              const md = {};
+              md[prop] = content;
+              simpleMeta.push(md);
+            }
+
+            if (prop.match(/identifier$/i)) {
+              if (typeof metas[prop][0].$.id) {
+                if (metas[prop][0].$.id == uniqueIdentifier) {
+                  if (typeof content == "object") {
+                    console.log("warning - content not fully parsed");
+                    console.log(content);
+                    console.log(metas[prop][0].$.id);
+                  } else {
+                    uniqueIdentifierValue = content;
+                    if (typeof metas[prop][0].$.scheme !== "undefined") {
+                      uniqueIdentifierScheme = metas[prop][0].$.scheme;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
 
       // metadata
       buildMetadataLists();
@@ -267,161 +423,6 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
         htmlNav += "</ul>" + "\n";
       }
       htmlNav += "</li>" + "\n";
-    }
-
-    function buildItemHashes() {
-      for (const item in itemlist) {
-        const href = itemlist[item].$.href;
-        const id = itemlist[item].$.id;
-        const properties = itemlist[item].$["properties"];
-        if (typeof properties !== "undefined") {
-          if (properties == "cover-image") {
-            epub3CoverId = id;
-          } else if (properties == "nav") {
-            epub3NavId = id;
-            epub3NavHtml = extractText(opsRoot + href);
-          }
-        }
-        itemHashByHref[href] = itemlist[item];
-        itemHashById[id] = itemlist[item];
-      }
-
-      try {
-        ncxId = spine.$.toc;
-      } catch (e) {}
-    }
-
-    function buildLinearSpine() {
-      for (const itemref in itemreflist) {
-        const id = itemreflist[itemref].$.idref;
-
-        spineOrder.push(itemreflist[itemref].$);
-
-        if (
-          itemreflist[itemref].$.linear == "yes" ||
-          typeof itemreflist[itemref].$.linear == "undefined"
-        ) {
-          itemreflist[itemref].$.item = itemHashById[id];
-          linearSpine[id] = itemreflist[itemref].$;
-        }
-      }
-    }
-
-    function buildMetadataLists() {
-      const metas = metadata;
-      for (const prop in metas) {
-        if (prop == "meta") {
-          // process a list of meta tags
-
-          for (let i = 0; i < (metas[prop] ?? []).length; i++) {
-            const m = metas[prop][i].$;
-
-            if (typeof m.name !== "undefined") {
-              const md = {};
-              md[m.name] = m.content;
-              simpleMeta.push(md);
-            } else if (typeof m.property !== "undefined") {
-              const md = {};
-              md[m.property] = metas[prop][i]._;
-              simpleMeta.push(md);
-            }
-
-            if (m.name == "cover") {
-              if (typeof itemHashById[m.content] !== "undefined") {
-                epub2CoverUrl = opsRoot + itemHashById[m.content].$.href;
-              }
-            }
-          }
-        } else if (prop != "$") {
-          let content = "";
-          const atts = {};
-          if (metas[prop][0]) {
-            if (metas[prop][0].$ || metas[prop][0]._) {
-              // complex tag
-              content = metas[prop][0]._ ? metas[prop][0]._ : metas[prop][0];
-
-              if (metas[prop][0].$) {
-                // has attributes
-                for (const att in metas[prop][0].$) {
-                  atts[att] = metas[prop][0].$[att];
-                }
-              }
-            } else {
-              // simple one, if object, assume empty
-              content = typeof metas[prop][0] == "object" ? "" : metas[prop][0];
-            }
-          }
-          if (typeof prop !== "undefined") {
-            const md = {};
-            md[prop] = content;
-            simpleMeta.push(md);
-          }
-
-          if (prop.match(/identifier$/i)) {
-            if (typeof metas[prop][0].$.id) {
-              if (metas[prop][0].$.id == uniqueIdentifier) {
-                if (typeof content == "object") {
-                  console.log("warning - content not fully parsed");
-                  console.log(content);
-                  console.log(metas[prop][0].$.id);
-                } else {
-                  uniqueIdentifierValue = content;
-                  if (typeof metas[prop][0].$.scheme !== "undefined") {
-                    uniqueIdentifierScheme = metas[prop][0].$.scheme;
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-
-    function parsePackageElements() {
-      // operates on global vars
-
-      if (typeof opf[opfPrefix + "manifest"] === "undefined") {
-        // it's a problem
-        // gutenberg files, for example will lead to this condition
-        // we must assume that tags are not actually namespaced
-
-        opfPrefix = "";
-      }
-
-      try {
-        metadata = opf[opfPrefix + "metadata"][0];
-      } catch (e) {
-        console.log("metadata element error: " + e.message);
-        console.log(
-          "are the tags really namespaced with " +
-            opfPrefix +
-            " or not? file indicates they should be."
-        );
-      }
-      try {
-        manifest = opf[opfPrefix + "manifest"][0];
-      } catch (e) {
-        console.log("manifest element error: " + e.message);
-        console.log(
-          "are the tags really namespaced with " +
-            opfPrefix +
-            " or not? file indicates they should be."
-        );
-        console.log(opfDataXML);
-        console.log(opf);
-        console.log("must throw this - unrecoverable");
-        throw e;
-      }
-      try {
-        spine = opf[opfPrefix + "spine"][0];
-      } catch (e) {
-        console.log("spine element error: " + e.message);
-        console.log("must throw this");
-        throw e;
-      }
-      try {
-        guide = opf[opfPrefix + "guide"][0];
-      } catch (e) {}
     }
 
     function getEpubDataBlock() {
