@@ -148,13 +148,11 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
       const opfJSON = await parser.parseStringPromise(opfDataXML.toString());
 
       // store opf data
-      opf = opfJSON["opf:package"]
-        ? opfJSON["opf:package"]
-        : opfJSON["package"];
+      opf = opfJSON["opf:package"] ?? opfJSON["package"];
       uniqueIdentifier = opf["$"]["unique-identifier"];
       epubVersion = opf["$"]["version"][0];
 
-      isEpub3 = epubVersion == "3" || epubVersion == "3.0" ? true : false;
+      isEpub3 = epubVersion === "3" || epubVersion === "3.0" ;
 
       //  console.log('epub version:'+epubVersion);
       for (const att in opf["$"]) {
