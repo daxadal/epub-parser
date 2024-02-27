@@ -11,7 +11,7 @@ const parser = new Parser();
 export function extractText(filename: string) {
   //console.log('extracting '+filename);
   const file = zip.file(filename);
-  if (typeof file !== "undefined" || file !== null) {
+  if (file || file !== null) {
     return file.asText();
   } else {
     throw "file " + filename + " not found in zip";
@@ -20,7 +20,7 @@ export function extractText(filename: string) {
 
 export function extractBinary(filename: any) {
   const file = zip.file(filename);
-  if (typeof file !== "undefined") {
+  if (file) {
     return file.asBinary();
   } else {
     return "";
@@ -168,7 +168,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
       function parsePackageElements() {
         // operates on global vars
 
-        if (typeof opf[opfPrefix + "manifest"] === "undefined") {
+        if (!opf[opfPrefix + "manifest"]) {
           // it's a problem
           // gutenberg files, for example will lead to this condition
           // we must assume that tags are not actually namespaced
@@ -224,7 +224,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
           const href = itemlist[item].$.href;
           const id = itemlist[item].$.id;
           const properties = itemlist[item].$["properties"];
-          if (typeof properties !== "undefined") {
+          if (properties) {
             if (properties == "cover-image") {
               epub3CoverId = id;
             } else if (properties == "nav") {
@@ -251,7 +251,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
 
           if (
             itemreflist[itemref].$.linear == "yes" ||
-            typeof itemreflist[itemref].$.linear == "undefined"
+            !itemreflist[itemref].$.linear
           ) {
             itemreflist[itemref].$.item = itemHashById[id];
             linearSpine[id] = itemreflist[itemref].$;
@@ -270,18 +270,18 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
             for (let i = 0; i < (metas[prop] ?? []).length; i++) {
               const m = metas[prop][i].$;
 
-              if (typeof m.name !== "undefined") {
+              if (m.name) {
                 const md = {};
                 md[m.name] = m.content;
                 simpleMeta.push(md);
-              } else if (typeof m.property !== "undefined") {
+              } else if (m.property) {
                 const md = {};
                 md[m.property] = metas[prop][i]._;
                 simpleMeta.push(md);
               }
 
               if (m.name == "cover") {
-                if (typeof itemHashById[m.content] !== "undefined") {
+                if (itemHashById[m.content]) {
                   epub2CoverUrl = opsRoot + itemHashById[m.content].$.href;
                 }
               }
@@ -306,7 +306,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
                   typeof metas[prop][0] == "object" ? "" : metas[prop][0];
               }
             }
-            if (typeof prop !== "undefined") {
+            if (prop) {
               const md = {};
               md[prop] = content;
               simpleMeta.push(md);
@@ -321,7 +321,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
                     console.log(metas[prop][0].$.id);
                   } else {
                     uniqueIdentifierValue = content;
-                    if (typeof metas[prop][0].$.scheme !== "undefined") {
+                    if (metas[prop][0].$.scheme) {
                       uniqueIdentifierScheme = metas[prop][0].$.scheme;
                     }
                   }
@@ -406,16 +406,16 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
       let text = "Untitled";
       let src = "#";
 
-      if (typeof np.navLabel !== "undefined") {
+      if (np.navLabel) {
         text = np.navLabel[0].text[0];
       }
-      if (typeof np.content !== "undefined") {
+      if (np.content) {
         src = np.content[0]["$"].src;
       }
 
       htmlNav += '<li><a href="' + src + '">' + text + "</a>";
 
-      if (typeof np.navPoint !== "undefined") {
+      if (np.navPoint) {
         htmlNav += "<ul>";
         for (let i = 0; i < (np.navPoint ?? []).length; i++) {
           processNavPoint(np.navPoint[i]);
