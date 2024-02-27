@@ -11,7 +11,7 @@ const parser = new Parser();
 export function extractText(filename: string) {
   //console.log('extracting '+filename);
   const file = zip.file(filename);
-  if (file || file !== null) {
+  if (file) {
     return file.asText();
   } else {
     throw "file " + filename + " not found in zip";
@@ -158,9 +158,9 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
       for (const att in opf["$"]) {
         if (att.match(/^xmlns:/)) {
           ns = att.replace(/^xmlns:/, "");
-          if (opf["$"][att] == "http://www.idpf.org/2007/opf")
+          if (opf["$"][att] === "http://www.idpf.org/2007/opf")
             opfPrefix = ns + ":";
-          if (opf["$"][att] == "http://purl.org/dc/elements/1.1/")
+          if (opf["$"][att] === "http://purl.org/dc/elements/1.1/")
             dcPrefix = ns + ":";
         }
       }
@@ -225,9 +225,9 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
           const id = itemlist[item].$.id;
           const properties = itemlist[item].$["properties"];
           if (properties) {
-            if (properties == "cover-image") {
+            if (properties === "cover-image") {
               epub3CoverId = id;
-            } else if (properties == "nav") {
+            } else if (properties === "nav") {
               epub3NavId = id;
               epub3NavHtml = extractText(opsRoot + href);
             }
@@ -250,7 +250,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
           spineOrder.push(itemreflist[itemref].$);
 
           if (
-            itemreflist[itemref].$.linear == "yes" ||
+            itemreflist[itemref].$.linear === "yes" ||
             !itemreflist[itemref].$.linear
           ) {
             itemreflist[itemref].$.item = itemHashById[id];
@@ -264,7 +264,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
       function buildMetadataLists() {
         const metas = metadata;
         for (const prop in metas) {
-          if (prop == "meta") {
+          if (prop === "meta") {
             // process a list of meta tags
 
             for (let i = 0; i < (metas[prop] ?? []).length; i++) {
@@ -280,13 +280,13 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
                 simpleMeta.push(md);
               }
 
-              if (m.name == "cover") {
+              if (m.name === "cover") {
                 if (itemHashById[m.content]) {
                   epub2CoverUrl = opsRoot + itemHashById[m.content].$.href;
                 }
               }
             }
-          } else if (prop != "$") {
+          } else if (prop !== "$") {
             let content = "";
             const atts = {};
             if (metas[prop][0]) {
@@ -303,7 +303,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
               } else {
                 // simple one, if object, assume empty
                 content =
-                  typeof metas[prop][0] == "object" ? "" : metas[prop][0];
+                  typeof metas[prop][0] === "object" ? "" : metas[prop][0];
               }
             }
             if (prop) {
@@ -314,8 +314,8 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
 
             if (prop.match(/identifier$/i)) {
               if (typeof metas[prop][0].$.id) {
-                if (metas[prop][0].$.id == uniqueIdentifier) {
-                  if (typeof content == "object") {
+                if (metas[prop][0].$.id === uniqueIdentifier) {
+                  if (typeof content === "object") {
                     console.log("warning - content not fully parsed");
                     console.log(content);
                     console.log(metas[prop][0].$.id);
@@ -355,7 +355,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
       } else {
         // epub 2, use ncx doc
         for (const item in manifest[opfPrefix + "item"]) {
-          if (manifest[opfPrefix + "item"][item]["$"].id == ncxId) {
+          if (manifest[opfPrefix + "item"][item]["$"].id === ncxId) {
             ncxPath = opsRoot + manifest[opfPrefix + "item"][item]["$"].href;
           }
         }
@@ -367,7 +367,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
         function setPrefix(attrs: { [x: string]: string }): string {
           const foundEntry = Object.entries(attrs).find(([att, value]) => {
             att.match(/^xmlns:/) &&
-              value == "http://www.daisy.org/z3986/2005/ncx/";
+              value === "http://www.daisy.org/z3986/2005/ncx/";
           });
           return foundEntry ? foundEntry[0].replace(/^xmlns:/, "") + ":" : "";
         }
@@ -486,7 +486,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
           encoding: null /* sets the response to be a buffer */,
         },
         function (error, response, body) {
-          if (!error && response.statusCode == 200) {
+          if (!error && response.statusCode === 200) {
             const b = body;
 
             readAndParseData(b, (err, epubData) =>
