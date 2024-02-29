@@ -51,7 +51,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     opsRoot: string,
     uniqueIdentifier: any,
     uniqueIdentifierValue: string | undefined,
-    uniqueIdentifierScheme = null,
+    uniqueIdentifierScheme: any,
     opfDataXML: { toString: () => convertableToString },
     ncxDataXML: string,
     opfPrefix = "",
@@ -185,12 +185,12 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     ({ spineOrder, linearSpine } = buildLinearSpine(itemreflist, itemHashById));
 
     // metadata
-    ({ simpleMeta, epub2CoverUrl, uniqueIdentifierValue } = buildMetadataLists(
-      metadata,
-      uniqueIdentifier,
-      itemHashById,
-      opsRoot
-    ));
+    ({
+      simpleMeta,
+      epub2CoverUrl,
+      uniqueIdentifierValue,
+      uniqueIdentifierScheme,
+    } = buildMetadataLists(metadata, uniqueIdentifier, itemHashById, opsRoot));
 
     if (!ncxId) {
       // assume epub 3 navigation doc
@@ -347,7 +347,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
   ) {
     let epub2CoverUrl: string | null = null;
     const simpleMeta: Record<string, any>[] = [];
-    let uniqueIdentifierValue: string | undefined;
+    let uniqueIdentifierValue: string | undefined, uniqueIdentifierScheme: any;
 
     for (const prop in metas) {
       if (prop === "meta") {
@@ -412,7 +412,12 @@ export async function open(filename: string | Buffer): Promise<unknown> {
       }
     }
 
-    return { simpleMeta, epub2CoverUrl, uniqueIdentifierValue };
+    return {
+      simpleMeta,
+      epub2CoverUrl,
+      uniqueIdentifierValue,
+      uniqueIdentifierScheme,
+    };
   }
 
   function parsePackageElements(opf: Record<string, any[]>, opfPrefix: string) {
