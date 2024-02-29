@@ -182,7 +182,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     ({ itemHashById, itemHashByHref, epub3CoverId, epub3NavId, epub3NavHtml } =
       buildItemHashes(itemlist, opsRoot));
 
-    ({ spineOrder, linearSpine } = buildLinearSpine(itemreflist));
+    ({ spineOrder, linearSpine } = buildLinearSpine(itemreflist, itemHashById));
 
     // metadata
     ({ simpleMeta, epub2CoverUrl, uniqueIdentifierValue } = buildMetadataLists(
@@ -315,7 +315,10 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     };
   }
 
-  function buildLinearSpine(itemreflist: { [x: string]: { $: any } }) {
+  function buildLinearSpine(
+    itemreflist: { [x: string]: { $: any } },
+    itemHashById: any
+  ) {
     const spineOrder: any[] = [];
     const linearSpine = {};
 
