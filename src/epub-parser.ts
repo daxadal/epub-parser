@@ -165,17 +165,18 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
         }
       }
 
-      function parsePackageElements() {
-        // operates on global vars
+      if (!opf[opfPrefix + "manifest"]) {
+        // it's a problem
+        // gutenberg files, for example will lead to this condition
+        // we must assume that tags are not actually namespaced
 
-        if (!opf[opfPrefix + "manifest"]) {
-          // it's a problem
-          // gutenberg files, for example will lead to this condition
-          // we must assume that tags are not actually namespaced
+        opfPrefix = "";
+      }
 
-          opfPrefix = "";
-        }
-
+      function parsePackageElements(
+        opf: Record<string, any[]>,
+        opfPrefix: string
+      ) {
         let metadata: any;
         try {
           metadata = opf[opfPrefix + "metadata"][0];
@@ -201,7 +202,6 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
               opfPrefix +
               " or not? file indicates they should be."
           );
-          console.log(opfDataXML);
           console.log(opf);
           console.log("must throw this - unrecoverable");
           throw e;
@@ -221,14 +221,17 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
         return { metadata, manifest, spine, guide };
       }
 
-      ({ metadata, manifest, spine, guide } = parsePackageElements());
+      ({ metadata, manifest, spine, guide } = parsePackageElements(
+        opf,
+        opfPrefix
+      ));
 
       // spine
       itemlist = manifest.item;
 
       itemreflist = spine.itemref;
 
-      function buildItemHashes() {
+      function buildItemHashes(itemlist: Record<string, any>, opsRoot: string) {
         for (const item in itemlist) {
           const href = itemlist[item].$.href;
           const id = itemlist[item].$.id;
@@ -248,9 +251,9 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
         ncxId = spine?.$?.toc;
       }
 
-      buildItemHashes();
+      buildItemHashes(itemlist, opsRoot);
 
-      function buildLinearSpine() {
+      function buildLinearSpine(itemreflist: { [x: string]: { $: any } }) {
         const spineOrder: any[] = [];
         for (const itemref in itemreflist) {
           const id = itemreflist[itemref].$.idref;
@@ -269,9 +272,9 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
         return { spineOrder };
       }
 
-      ({ spineOrder } = buildLinearSpine());
+      ({ spineOrder } = buildLinearSpine(itemreflist));
 
-      function buildMetadataLists(metas: any) {
+      function buildMetadataLists(metas: any, uniqueIdentifier: any) {
         let epub2CoverUrl: string | null = null;
         const simpleMeta: Record<string, any>[] = [];
         for (const prop in metas) {
@@ -342,7 +345,10 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
       }
 
       // metadata
-      ({ simpleMeta, epub2CoverUrl } = buildMetadataLists(metadata));
+      ({ simpleMeta, epub2CoverUrl } = buildMetadataLists(
+        metadata,
+        uniqueIdentifier
+      ));
 
       if (!ncxId) {
         // assume epub 3 navigation doc
