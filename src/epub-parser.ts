@@ -39,7 +39,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
 
     let epubdata = {};
     let md5hash: string;
-    let htmlNav: string | null = "<ul>";
+    let htmlNav: string | null;
 
     let container: {
         rootfiles: { rootfile: { [x: string]: { [x: string]: any } }[] }[];
@@ -176,6 +176,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
           opfPrefix = "";
         }
 
+        let metadata: any;
         try {
           metadata = opf[opfPrefix + "metadata"][0];
         } catch (e: any) {
@@ -186,6 +187,11 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
               " or not? file indicates they should be."
           );
         }
+
+        let manifest: {
+          [x: string]: { [x: string]: { [x: string]: { href: any } } };
+          item: any;
+        };
         try {
           manifest = opf[opfPrefix + "manifest"][0];
         } catch (e: any) {
@@ -200,6 +206,8 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
           console.log("must throw this - unrecoverable");
           throw e;
         }
+
+        let spine: { itemref: any; $: { toc: any } };
         try {
           spine = opf[opfPrefix + "spine"][0];
         } catch (e: any) {
@@ -209,9 +217,11 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
         }
 
         guide = opf?.[opfPrefix + "guide"]?.[0];
+
+        return { metadata, manifest, spine, guide };
       }
 
-      parsePackageElements();
+      ({ metadata, manifest, spine, guide } = parsePackageElements());
 
       // spine
       itemlist = manifest.item;
@@ -261,10 +271,9 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
 
       ({ spineOrder } = buildLinearSpine());
 
-      function buildMetadataLists() {
+      function buildMetadataLists(metas: any) {
         let epub2CoverUrl: string | null = null;
         const simpleMeta: Record<string, any>[] = [];
-        const metas = metadata;
         for (const prop in metas) {
           if (prop === "meta") {
             // process a list of meta tags
@@ -310,19 +319,19 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
               simpleMeta.push(md);
             }
 
-            if (prop.match(/identifier$/i)) {
-              if (typeof metas[prop][0].$.id) {
-                if (metas[prop][0].$.id === uniqueIdentifier) {
-                  if (typeof content === "object") {
-                    console.log("warning - content not fully parsed");
-                    console.log(content);
-                    console.log(metas[prop][0].$.id);
-                  } else {
-                    uniqueIdentifierValue = content;
-                    if (metas[prop][0].$.scheme) {
-                      uniqueIdentifierScheme = metas[prop][0].$.scheme;
-                    }
-                  }
+            if (
+              prop.match(/identifier$/i) &&
+              metas[prop][0].$.id &&
+              metas[prop][0].$.id === uniqueIdentifier
+            ) {
+              if (typeof content === "object") {
+                console.log("warning - content not fully parsed");
+                console.log(content);
+                console.log(metas[prop][0].$.id);
+              } else {
+                uniqueIdentifierValue = content;
+                if (metas[prop][0].$.scheme) {
+                  uniqueIdentifierScheme = metas[prop][0].$.scheme;
                 }
               }
             }
@@ -333,7 +342,7 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
       }
 
       // metadata
-      ({ simpleMeta, epub2CoverUrl } = buildMetadataLists());
+      ({ simpleMeta, epub2CoverUrl } = buildMetadataLists(metadata));
 
       if (!ncxId) {
         // assume epub 3 navigation doc
@@ -389,8 +398,9 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
 
         const navPoints = ncx[ncxPrefix + "navMap"][0][ncxPrefix + "navPoint"];
 
+        htmlNav = "<ul>";
         for (let i = 0; i < (navPoints ?? []).length; i++) {
-          processNavPoint(navPoints[i]);
+          htmlNav += processNavPoint(navPoints[i]);
         }
         htmlNav += "</ul>" + "\n";
         epubdata = getEpubDataBlock();
@@ -413,16 +423,17 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
         src = np.content[0]["$"].src;
       }
 
-      htmlNav += '<li><a href="' + src + '">' + text + "</a>";
+      let htmlNav = '<li><a href="' + src + '">' + text + "</a>";
 
       if (np.navPoint) {
         htmlNav += "<ul>";
         for (let i = 0; i < (np.navPoint ?? []).length; i++) {
-          processNavPoint(np.navPoint[i]);
+          htmlNav += processNavPoint(np.navPoint[i]);
         }
         htmlNav += "</ul>" + "\n";
       }
       htmlNav += "</li>" + "\n";
+      return htmlNav;
     }
 
     function getEpubDataBlock() {
