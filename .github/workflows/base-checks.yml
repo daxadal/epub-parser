@@ -1,0 +1,40 @@
+name: Base checks
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+  workflow_dispatch:
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout branch"
+        uses: actions/checkout@v4
+
+      - name: "Setup node environment"
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18.x"
+
+      - name: "Install dependencies"
+        run: npm ci
+
+      - name: "Build"
+        run: npm run tsc
+
+      - name: "Test"
+        run: npm run test
+        # TODO: Add artefacts: logs/, junit.xml
+
+      - name: "Lint"
+        run: npm run lint
+
+      # - name: SonarCloud Scan
+      #   if: ${{ failure() || success() }}
+      #   uses: SonarSource/sonarcloud-github-action@master
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.SECRET_GITHUB_TOKEN }} # Needed to get PR information, if any
+      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

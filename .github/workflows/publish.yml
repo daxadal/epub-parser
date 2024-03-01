@@ -1,0 +1,44 @@
+name: Publish new version
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Bump version"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Checkout branch"
+        uses: actions/checkout@v2
+
+      - name: "Setup node environment"
+        uses: actions/setup-node@v2
+        with:
+          node-version: "18.x"
+
+      - name: "Bump version"
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@noreply.github.com"
+          VERSION=`npm version ${{ github.event.inputs.version }}`
+          git push origin HEAD:${{ github.ref_name }} --follow-tags
+
+      - name: "Install dependencies"
+        run: npm install
+
+      - name: "Build"
+        run: npm run tsc
+
+      - name: "Publish version"
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
