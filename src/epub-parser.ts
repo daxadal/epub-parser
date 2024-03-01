@@ -333,9 +333,10 @@ export function getJsZip() {
 }
 
 function setPrefix(attrs: { [x: string]: string }): string {
-  const foundEntry = Object.entries(attrs).find(([att, value]) => {
-    att.match(/^xmlns:/) && value === "http://www.daisy.org/z3986/2005/ncx/";
-  });
+  const foundEntry = Object.entries(attrs).find(
+    ([att, value]) =>
+      att.match(/^xmlns:/) && value === "http://www.daisy.org/z3986/2005/ncx/"
+  );
   return foundEntry ? foundEntry[0].replace(/^xmlns:/, "") + ":" : "";
 }
 
