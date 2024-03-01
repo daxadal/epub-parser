@@ -1,0 +1,35 @@
+name: release-please
+
+on:
+  workflow_call:
+    secrets:
+      token:
+        required: true
+        
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/release-please-action@v3
+        with:
+          command: manifest
+
+jobs:
+  release-please:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    outputs:
+      api-clikoffice-release: ${{ steps.set-outputs.outputs.api-clikoffice-release }}
+      api-clikoffice-version: ${{ steps.set-outputs.outputs.api-clikoffice-version }}
+
+    steps:
+      - uses: google-github-actions/release-please-action@v3
+        id: release
+        with:
+          command: manifest
+
+      - name: Set outputs
+        id: set-outputs
+        run: |
+          echo "api-clikoffice-release=${{ steps.release.outputs.release_created }}" >> "$GITHUB_OUTPUT"
+          echo "api-clikoffice-version=${{ steps.release.outputs.tag_name }}" >> "$GITHUB_OUTPUT"
