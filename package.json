@@ -6,6 +6,7 @@
   "scripts": {
     "lint": "eslint ./src",
     "lint:fix": "eslint ./src --fix",
+    "test": "echo \"Test not yet implemented\"",
     "tsc": "rm -rf dist && tsc --project tsconfig.compile.json"
   },
   "dependencies": {
