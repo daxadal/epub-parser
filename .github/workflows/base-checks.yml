@@ -32,9 +32,9 @@ jobs:
       - name: "Lint"
         run: npm run lint
 
-      # - name: SonarCloud Scan
-      #   if: ${{ failure() || success() }}
-      #   uses: SonarSource/sonarcloud-github-action@master
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.SECRET_GITHUB_TOKEN }} # Needed to get PR information, if any
-      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      - name: SonarCloud Scan
+        if: ${{ failure() || success() }}
+        uses: SonarSource/sonarcloud-github-action@master
+        # env:
+        #   GITHUB_TOKEN: ${{ secrets.SECRET_GITHUB_TOKEN }} # Needed to get PR information, if any
+        #   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
