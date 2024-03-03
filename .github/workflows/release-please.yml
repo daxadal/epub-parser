@@ -1,0 +1,14 @@
+name: release-please
+
+on:
+  workflow_call:
+    secrets:
+      token:
+        required: true
+        
+jobs:
+  release-please:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/release-please-action@v4
