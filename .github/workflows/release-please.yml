@@ -1,10 +1,7 @@
 name: release-please
 
 on:
-  workflow_call:
-    secrets:
-      token:
-        required: true
+  push
         
 jobs:
   release-please:
