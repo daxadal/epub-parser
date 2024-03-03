@@ -65,10 +65,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     dcPrefix = "",
     ncxPrefix = "",
     metadata: any,
-    manifest: {
-      [x: string]: { [x: string]: { [x: string]: { href: any } } };
-      item: any;
-    },
+    manifest: any,
     spine: { itemref: any; $: { toc: any } },
     guide: any,
     nav: any,
