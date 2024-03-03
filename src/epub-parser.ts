@@ -125,14 +125,14 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     opfPath = root = container.rootfiles[0].rootfile[0]["$"]["full-path"];
 
     // set the opsRoot for resolving paths
-    if (root.match(/\//)) {
+    if (/\//.exec(root)) {
       // not at top level
       opsRoot = root.replace(/\/([^/]+)\.opf/i, "");
-      if (!opsRoot.match(/\/$/)) {
+      if (!/\/$/.exec(opsRoot)) {
         // does not end in slash, but we want it to
         opsRoot += "/";
       }
-      if (opsRoot.match(/^\//)) {
+      if (/^\//.exec(opsRoot)) {
         opsRoot = opsRoot.replace(/^\//, "");
       }
     } else {
@@ -153,7 +153,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     isEpub3 = epubVersion === "3" || epubVersion === "3.0";
 
     for (const att in opf["$"]) {
-      if (att.match(/^xmlns:/)) {
+      if (/^xmlns:/.exec(att)) {
         ns = att.replace(/^xmlns:/, "");
         if (opf["$"][att] === "http://www.idpf.org/2007/opf")
           opfPrefix = ns + ":";
