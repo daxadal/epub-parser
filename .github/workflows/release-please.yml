@@ -1,11 +1,19 @@
 name: release-please
 
 on:
-  push
-        
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   release-please:
-    if: ${{ github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-latest
     steps:
       - uses: google-github-actions/release-please-action@v4
+        with:
+          token: ${{ secrets.MY_RELEASE_PLEASE_TOKEN }}
+          release-type: node
