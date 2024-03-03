@@ -24,7 +24,7 @@ export function extractText(filename: string) {
   if (file) {
     return file.asText();
   } else {
-    throw "file " + filename + " not found in zip";
+    throw new Error("file " + filename + " not found in zip");
   }
 }
 
