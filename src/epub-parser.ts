@@ -15,11 +15,9 @@ import {
 
 const parser = new Parser();
 
-
 let zip;
 
 export function extractText(filename: string) {
-  //console.log('extracting '+filename);
   const file = zip.file(filename);
   if (file) {
     return file.asText();
@@ -125,7 +123,6 @@ export async function open(filename: string | Buffer): Promise<unknown> {
 
     // determine location of OPF
     opfPath = root = container.rootfiles[0].rootfile[0]["$"]["full-path"];
-    //  console.log('opfPath is:'+opfPath);
 
     // set the opsRoot for resolving paths
     if (root.match(/\//)) {
@@ -143,10 +140,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
       opsRoot = "";
     }
 
-    console.log("opsRoot is:" + opsRoot + " (derived from " + root + ")");
-
     // get the OPF data and parse it
-    console.log("parsing OPF data");
     opfDataXML = extractText(root);
 
     const opfJSON = await parser.parseStringPromise(opfDataXML.toString());
@@ -158,7 +152,6 @@ export async function open(filename: string | Buffer): Promise<unknown> {
 
     isEpub3 = epubVersion === "3" || epubVersion === "3.0";
 
-    //  console.log('epub version:'+epubVersion);
     for (const att in opf["$"]) {
       if (att.match(/^xmlns:/)) {
         ns = att.replace(/^xmlns:/, "");
@@ -225,7 +218,6 @@ export async function open(filename: string | Buffer): Promise<unknown> {
           ncxPath = opsRoot + manifest[opfPrefix + "item"][item]["$"].href;
         }
       }
-      //console.log('determined ncxPath:'+ncxPath);
       ncxDataXML = extractText(ncxPath);
 
       const ncxJSON = await parser.parseStringPromise(ncxDataXML.toString());
@@ -304,8 +296,6 @@ export async function open(filename: string | Buffer): Promise<unknown> {
   }
 
   if (Buffer.isBuffer(filename)) {
-    console.log("epub-parser parsing from buffer, not file");
-
     return readAndParseData(filename);
   } else if (filename.match(/^https?:\/\//i)) {
     // is a URL
