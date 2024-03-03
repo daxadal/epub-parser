@@ -4,9 +4,19 @@ import crypto from "crypto";
 import jszip from "jszip";
 import { Parser, convertableToString } from "xml2js";
 import request from "request";
+import {
+  parsePackageElements,
+  buildItemHashes,
+  buildLinearSpine,
+  buildMetadataLists,
+  setPrefix,
+  processNavPoint,
+} from "./parser-utils";
+
+const parser = new Parser();
+
 
 let zip;
-const parser = new Parser();
 
 export function extractText(filename: string) {
   //console.log('extracting '+filename);
@@ -27,7 +37,7 @@ export function extractBinary(filename: any) {
   }
 }
 
-export async function open(filename: PathLike | FileHandle): Promise<unknown> {
+export async function open(filename: string | Buffer): Promise<unknown> {
   /*
 
 			"filename" is still called "filename" but now it can be
@@ -49,8 +59,8 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
     ncxPath: string,
     opsRoot: string,
     uniqueIdentifier: any,
-    uniqueIdentifierValue: string,
-    uniqueIdentifierScheme = null,
+    uniqueIdentifierValue: string | undefined,
+    uniqueIdentifierScheme: any,
     opfDataXML: { toString: () => convertableToString },
     ncxDataXML: string,
     opfPrefix = "",
@@ -74,9 +84,9 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
     isEpub3: boolean,
     epubVersion: string;
   let itemlist: { [x: string]: any }, itemreflist: { [x: string]: { $: any } };
-  const itemHashById = {};
-  const itemHashByHref = {};
-  const linearSpine = {};
+  let itemHashById;
+  let itemHashByHref;
+  let linearSpine;
   let spineOrder: any[];
   let simpleMeta: Record<string, any>[];
 
@@ -167,25 +177,29 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
       opfPrefix = "";
     }
 
-    ({ metadata, manifest, spine, guide } = parsePackageElements(
-      opf,
-      opfPrefix
-    ));
+    ({ metadata, manifest, spine } = parsePackageElements(opf, opfPrefix));
+
+    guide = opf?.[opfPrefix + "guide"]?.[0];
+
+    ncxId = spine?.$?.toc;
 
     // spine
     itemlist = manifest.item;
 
     itemreflist = spine.itemref;
 
-    buildItemHashes(itemlist, opsRoot);
+    ({ itemHashById, itemHashByHref, epub3CoverId, epub3NavId, epub3NavHtml } =
+      buildItemHashes(itemlist, opsRoot));
 
-    ({ spineOrder } = buildLinearSpine(itemreflist));
+    ({ spineOrder, linearSpine } = buildLinearSpine(itemreflist, itemHashById));
 
     // metadata
-    ({ simpleMeta, epub2CoverUrl } = buildMetadataLists(
-      metadata,
-      uniqueIdentifier
-    ));
+    ({
+      simpleMeta,
+      epub2CoverUrl,
+      uniqueIdentifierValue,
+      uniqueIdentifierScheme,
+    } = buildMetadataLists(metadata, uniqueIdentifier, itemHashById, opsRoot));
 
     if (!ncxId) {
       // assume epub 3 navigation doc
@@ -216,14 +230,6 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
 
       const ncxJSON = await parser.parseStringPromise(ncxDataXML.toString());
 
-      function setPrefix(attrs: { [x: string]: string }): string {
-        const foundEntry = Object.entries(attrs).find(([att, value]) => {
-          att.match(/^xmlns:/) &&
-            value === "http://www.daisy.org/z3986/2005/ncx/";
-        });
-        return foundEntry ? foundEntry[0].replace(/^xmlns:/, "") + ":" : "";
-      }
-
       // grab the correct ns prefix for ncx
 
       let attrs;
@@ -249,187 +255,6 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
       epubdata = getEpubDataBlock();
       return epubdata;
     }
-  }
-
-  function processNavPoint(np: {
-    navLabel: { text: string[] }[];
-    content: { [x: string]: { src: string } }[];
-    navPoint: any[];
-  }) {
-    let text = "Untitled";
-    let src = "#";
-
-    if (np.navLabel) {
-      text = np.navLabel[0].text[0];
-    }
-    if (np.content) {
-      src = np.content[0]["$"].src;
-    }
-
-    let htmlNav = '<li><a href="' + src + '">' + text + "</a>";
-
-    if (np.navPoint) {
-      htmlNav += "<ul>";
-      for (let i = 0; i < (np.navPoint ?? []).length; i++) {
-        htmlNav += processNavPoint(np.navPoint[i]);
-      }
-      htmlNav += "</ul>" + "\n";
-    }
-    htmlNav += "</li>" + "\n";
-    return htmlNav;
-  }
-
-  function buildItemHashes(itemlist: Record<string, any>, opsRoot: string) {
-    for (const item in itemlist) {
-      const href = itemlist[item].$.href;
-      const id = itemlist[item].$.id;
-      const properties = itemlist[item].$["properties"];
-      if (properties) {
-        if (properties === "cover-image") {
-          epub3CoverId = id;
-        } else if (properties === "nav") {
-          epub3NavId = id;
-          epub3NavHtml = extractText(opsRoot + href);
-        }
-      }
-      itemHashByHref[href] = itemlist[item];
-      itemHashById[id] = itemlist[item];
-    }
-
-    ncxId = spine?.$?.toc;
-  }
-
-  function buildLinearSpine(itemreflist: { [x: string]: { $: any } }) {
-    const spineOrder: any[] = [];
-    for (const itemref in itemreflist) {
-      const id = itemreflist[itemref].$.idref;
-
-      spineOrder.push(itemreflist[itemref].$);
-
-      if (
-        itemreflist[itemref].$.linear === "yes" ||
-        !itemreflist[itemref].$.linear
-      ) {
-        itemreflist[itemref].$.item = itemHashById[id];
-        linearSpine[id] = itemreflist[itemref].$;
-      }
-    }
-
-    return { spineOrder };
-  }
-
-  function buildMetadataLists(metas: any, uniqueIdentifier: any) {
-    let epub2CoverUrl: string | null = null;
-    const simpleMeta: Record<string, any>[] = [];
-    for (const prop in metas) {
-      if (prop === "meta") {
-        // process a list of meta tags
-
-        for (let i = 0; i < (metas[prop] ?? []).length; i++) {
-          const m = metas[prop][i].$;
-
-          if (m.name) {
-            simpleMeta.push({ [m.name]: m.content });
-          } else if (m.property) {
-            simpleMeta.push({ [m.property]: metas[prop][i]._ });
-          }
-
-          if (m.name === "cover") {
-            if (itemHashById[m.content]) {
-              epub2CoverUrl = opsRoot + itemHashById[m.content].$.href;
-            }
-          }
-        }
-      } else if (prop !== "$") {
-        let content = "";
-        const atts = {};
-        if (metas[prop][0]) {
-          if (metas[prop][0].$ || metas[prop][0]._) {
-            // complex tag
-            content = metas[prop][0]._ ? metas[prop][0]._ : metas[prop][0];
-
-            if (metas[prop][0].$) {
-              // has attributes
-              for (const att in metas[prop][0].$) {
-                atts[att] = metas[prop][0].$[att];
-              }
-            }
-          } else {
-            // simple one, if object, assume empty
-            content = typeof metas[prop][0] === "object" ? "" : metas[prop][0];
-          }
-        }
-        if (prop) {
-          const md = {};
-          md[prop] = content;
-          simpleMeta.push(md);
-        }
-
-        if (
-          prop.match(/identifier$/i) &&
-          metas[prop][0].$.id &&
-          metas[prop][0].$.id === uniqueIdentifier
-        ) {
-          if (typeof content === "object") {
-            console.log("warning - content not fully parsed");
-            console.log(content);
-            console.log(metas[prop][0].$.id);
-          } else {
-            uniqueIdentifierValue = content;
-            if (metas[prop][0].$.scheme) {
-              uniqueIdentifierScheme = metas[prop][0].$.scheme;
-            }
-          }
-        }
-      }
-    }
-
-    return { simpleMeta, epub2CoverUrl };
-  }
-
-  function parsePackageElements(opf: Record<string, any[]>, opfPrefix: string) {
-    let metadata: any;
-    try {
-      metadata = opf[opfPrefix + "metadata"][0];
-    } catch (e: any) {
-      console.log("metadata element error: " + e.message);
-      console.log(
-        "are the tags really namespaced with " +
-          opfPrefix +
-          " or not? file indicates they should be."
-      );
-    }
-
-    let manifest: {
-      [x: string]: { [x: string]: { [x: string]: { href: any } } };
-      item: any;
-    };
-    try {
-      manifest = opf[opfPrefix + "manifest"][0];
-    } catch (e: any) {
-      console.log("manifest element error: " + e.message);
-      console.log(
-        "are the tags really namespaced with " +
-          opfPrefix +
-          " or not? file indicates they should be."
-      );
-      console.log(opf);
-      console.log("must throw this - unrecoverable");
-      throw e;
-    }
-
-    let spine: { itemref: any; $: { toc: any } };
-    try {
-      spine = opf[opfPrefix + "spine"][0];
-    } catch (e: any) {
-      console.log("spine element error: " + e.message);
-      console.log("must throw this");
-      throw e;
-    }
-
-    guide = opf?.[opfPrefix + "guide"]?.[0];
-
-    return { metadata, manifest, spine, guide };
   }
 
   function getEpubDataBlock() {
@@ -503,12 +328,9 @@ export async function open(filename: PathLike | FileHandle): Promise<unknown> {
     return readAndParseData(body);
   } else {
     // assume local full path to file
-    try {
-      const data = await fs.readFile(filename, "binary");
-      return readAndParseData(data);
-    } catch (err: any) {
-      reject(err);
-    }
+
+    const data = await fs.readFile(filename, "binary");
+    return readAndParseData(data);
   }
 } // end #open function definition block
 
