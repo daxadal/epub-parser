@@ -15,16 +15,14 @@ import {
 
 const parser = new Parser();
 
-
 let zip;
 
 export function extractText(filename: string) {
-  //console.log('extracting '+filename);
   const file = zip.file(filename);
   if (file) {
     return file.asText();
   } else {
-    throw "file " + filename + " not found in zip";
+    throw new Error("file " + filename + " not found in zip");
   }
 }
 
@@ -67,10 +65,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     dcPrefix = "",
     ncxPrefix = "",
     metadata: any,
-    manifest: {
-      [x: string]: { [x: string]: { [x: string]: { href: any } } };
-      item: any;
-    },
+    manifest: any,
     spine: { itemref: any; $: { toc: any } },
     guide: any,
     nav: any,
@@ -125,17 +120,16 @@ export async function open(filename: string | Buffer): Promise<unknown> {
 
     // determine location of OPF
     opfPath = root = container.rootfiles[0].rootfile[0]["$"]["full-path"];
-    //  console.log('opfPath is:'+opfPath);
 
     // set the opsRoot for resolving paths
-    if (root.match(/\//)) {
+    if (/\//.exec(root)) {
       // not at top level
       opsRoot = root.replace(/\/([^/]+)\.opf/i, "");
-      if (!opsRoot.match(/\/$/)) {
+      if (!/\/$/.exec(opsRoot)) {
         // does not end in slash, but we want it to
         opsRoot += "/";
       }
-      if (opsRoot.match(/^\//)) {
+      if (/^\//.exec(opsRoot)) {
         opsRoot = opsRoot.replace(/^\//, "");
       }
     } else {
@@ -143,10 +137,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
       opsRoot = "";
     }
 
-    console.log("opsRoot is:" + opsRoot + " (derived from " + root + ")");
-
     // get the OPF data and parse it
-    console.log("parsing OPF data");
     opfDataXML = extractText(root);
 
     const opfJSON = await parser.parseStringPromise(opfDataXML.toString());
@@ -158,9 +149,8 @@ export async function open(filename: string | Buffer): Promise<unknown> {
 
     isEpub3 = epubVersion === "3" || epubVersion === "3.0";
 
-    //  console.log('epub version:'+epubVersion);
     for (const att in opf["$"]) {
-      if (att.match(/^xmlns:/)) {
+      if (/^xmlns:/.exec(att)) {
         ns = att.replace(/^xmlns:/, "");
         if (opf["$"][att] === "http://www.idpf.org/2007/opf")
           opfPrefix = ns + ":";
@@ -225,7 +215,6 @@ export async function open(filename: string | Buffer): Promise<unknown> {
           ncxPath = opsRoot + manifest[opfPrefix + "item"][item]["$"].href;
         }
       }
-      //console.log('determined ncxPath:'+ncxPath);
       ncxDataXML = extractText(ncxPath);
 
       const ncxJSON = await parser.parseStringPromise(ncxDataXML.toString());
@@ -304,8 +293,6 @@ export async function open(filename: string | Buffer): Promise<unknown> {
   }
 
   if (Buffer.isBuffer(filename)) {
-    console.log("epub-parser parsing from buffer, not file");
-
     return readAndParseData(filename);
   } else if (filename.match(/^https?:\/\//i)) {
     // is a URL
