@@ -1,6 +1,6 @@
 {
   "name": "epub-parser",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "description": "Epub parser",
   "main": "src/index.js",
   "scripts": {
