@@ -4,6 +4,7 @@ import crypto from "crypto";
 import jszip from "jszip";
 import { Parser, convertableToString } from "xml2js";
 import request from "request";
+
 import {
   parsePackageElements,
   buildItemHashes,
@@ -294,7 +295,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
 
   if (Buffer.isBuffer(filename)) {
     return readAndParseData(filename);
-  } else if (filename.match(/^https?:\/\//i)) {
+  } else if (/^https?:\/\//i.exec(filename)) {
     // is a URL
 
     const body = await new Promise<Buffer>((resolve, reject) =>

@@ -5,7 +5,7 @@ import { extractText } from "./epub-parser";
 export function setPrefix(attrs: { [x: string]: string }): string {
   const foundEntry = Object.entries(attrs).find(
     ([att, value]) =>
-      att.match(/^xmlns:/) && value === "http://www.daisy.org/z3986/2005/ncx/"
+      /^xmlns:/.exec(att) && value === "http://www.daisy.org/z3986/2005/ncx/"
   );
   return foundEntry ? foundEntry[0].replace(/^xmlns:/, "") + ":" : "";
 }
@@ -146,7 +146,7 @@ export function buildMetadataLists(
       }
 
       if (
-        prop.match(/identifier$/i) &&
+        /identifier$/i.exec(prop) &&
         metas[prop][0].$.id &&
         metas[prop][0].$.id === uniqueIdentifier
       ) {
