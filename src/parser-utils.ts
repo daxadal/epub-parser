@@ -9,20 +9,14 @@ export function setPrefix(attrs: { [x: string]: string }): string {
   );
   return foundEntry ? foundEntry[0].replace(/^xmlns:/, "") + ":" : "";
 }
+
 export function processNavPoint(np: {
   navLabel: { text: string[] }[];
   content: { [x: string]: { src: string } }[];
   navPoint: any[];
 }) {
-  let text = "Untitled";
-  let src = "#";
-
-  if (np.navLabel) {
-    text = np.navLabel[0].text[0];
-  }
-  if (np.content) {
-    src = np.content[0]["$"].src;
-  }
+  const text = np.navLabel ? np.navLabel[0].text[0] : "Untitled";
+  const src = np.content ? np.content[0]["$"].src : "#";
 
   let htmlNav = '<li><a href="' + src + '">' + text + "</a>";
 
@@ -36,6 +30,7 @@ export function processNavPoint(np: {
   htmlNav += "</li>" + "\n";
   return htmlNav;
 }
+
 export function buildItemHashes(
   itemlist: Record<string, any>,
   opsRoot: string
@@ -69,6 +64,7 @@ export function buildItemHashes(
     epub3NavHtml,
   };
 }
+
 export function buildLinearSpine(
   itemreflist: { [x: string]: { $: any } },
   itemHashById: any
@@ -92,6 +88,7 @@ export function buildLinearSpine(
 
   return { spineOrder, linearSpine };
 }
+
 export function buildMetadataLists(
   metas: any,
   uniqueIdentifier: any,
@@ -171,6 +168,7 @@ export function buildMetadataLists(
     uniqueIdentifierScheme,
   };
 }
+
 export function parsePackageElements(
   opf: Record<string, any[]>,
   opfPrefix: string
