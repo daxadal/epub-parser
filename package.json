@@ -17,10 +17,12 @@
   },
   "devDependencies": {
     "@types/eyes": "^0.1.35",
+    "@types/jest": "^29.5.12",
     "@types/request": "^2.48.12",
     "@types/xml2js": "^0.4.14",
     "@typescript-eslint/eslint-plugin": "^5.4.0",
     "@typescript-eslint/parser": "^5.4.0",
+    "epub-parser": "^0.2.5",
     "eslint": "^8.0.0",
     "eslint-config-airbnb": "^19.0.0",
     "eslint-config-prettier": "^8.5.0",
