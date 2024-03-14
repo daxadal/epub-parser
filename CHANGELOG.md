@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/daxadal/epub-parser/compare/v0.3.0...v0.4.0) (2024-03-14)
+
+
+### Features
+
+* add compatibility test ([#10](https://github.com/daxadal/epub-parser/issues/10)) ([ffb9532](https://github.com/daxadal/epub-parser/commit/ffb953273fd8fe5842e276a8643d084b51cffbf5))
+
 ## 0.3.0 (2024-03-08)
 
 
