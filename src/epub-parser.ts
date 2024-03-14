@@ -36,7 +36,14 @@ export function extractBinary(filename: any) {
   }
 }
 
-export async function open(filename: string | Buffer): Promise<unknown> {
+interface OpenOptions {
+  mode: "legacy" | "extended";
+}
+
+export async function open(
+  filename: string | Buffer,
+  options: OpenOptions = { mode: "extended" }
+): Promise<unknown> {
   /*
 
 			"filename" is still called "filename" but now it can be
@@ -75,7 +82,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     ncxId: any,
     epub3CoverId: any,
     epub3NavId: any,
-    epub3NavHtml: convertableToString,
+    epub3NavHtml: string | undefined,
     epub2CoverUrl: string | null,
     isEpub3: boolean,
     epubVersion: string;
@@ -207,7 +214,11 @@ export async function open(filename: string | Buffer): Promise<unknown> {
       const navJSON = await parser.parseStringPromise(epub3NavHtml);
 
       nav = navJSON;
-      epubdata = getEpubDataBlock();
+      epubdata =
+        options.mode === "legacy"
+          ? getEpubDataBlock()
+          : getExtendedEpubDataBlock();
+
       return epubdata;
     } else {
       // epub 2, use ncx doc
@@ -242,7 +253,10 @@ export async function open(filename: string | Buffer): Promise<unknown> {
         htmlNav += processNavPoint(navPoints[i]);
       }
       htmlNav += "</ul>" + "\n";
-      epubdata = getEpubDataBlock();
+      epubdata =
+        options.mode === "legacy"
+          ? getEpubDataBlock()
+          : getExtendedEpubDataBlock();
       return epubdata;
     }
   }
@@ -290,6 +304,14 @@ export async function open(filename: string | Buffer): Promise<unknown> {
           ncxXML: ncxDataXML,
         },
       },
+    };
+  }
+
+  function getExtendedEpubDataBlock() {
+    return {
+      ...getEpubDataBlock(),
+      guide,
+      spineOrder,
     };
   }
 
