@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "eslint ./src",
     "lint:fix": "eslint ./src --fix",
-    "test": "echo \"Test not yet implemented\"",
+    "test": "ts-node ./test/parse.ts test/testbook.epub",
     "tsc": "rm -rf dist && tsc --project tsconfig.compile.json"
   },
   "dependencies": {
@@ -16,6 +16,7 @@
     "xml2js": ">=0.0.1"
   },
   "devDependencies": {
+    "@types/eyes": "^0.1.35",
     "@types/request": "^2.48.12",
     "@types/xml2js": "^0.4.14",
     "@typescript-eslint/eslint-plugin": "^5.4.0",
