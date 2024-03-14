@@ -13,28 +13,9 @@ import {
   setPrefix,
   processNavPoint,
 } from "./parser-utils";
+import { openZip, extractText } from "./zip-utils";
 
 const parser = new Parser();
-
-let zip;
-
-export function extractText(filename: string) {
-  const file = zip.file(filename);
-  if (file) {
-    return file.asText();
-  } else {
-    throw new Error("file " + filename + " not found in zip");
-  }
-}
-
-export function extractBinary(filename: any) {
-  const file = zip.file(filename);
-  if (file) {
-    return file.asBinary();
-  } else {
-    return "";
-  }
-}
 
 export async function open(filename: string | Buffer): Promise<unknown> {
   /*
@@ -91,11 +72,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
   ): Promise<any> {
     md5hash = crypto.createHash("md5").update(data).digest("hex");
 
-    zip = new jszip(data.toString("binary"), {
-      binary: true,
-      base64: false,
-      checkCRC32: true,
-    });
+    openZip(data);
     const containerData = extractText("META-INF/container.xml");
 
     return parseEpub(containerData);
@@ -329,9 +306,8 @@ async function transformToBuffer(filename: string | Buffer) {
   }
 }
 
-export function getZip() {
-  return zip;
-}
+export { getZip } from "./zip-utils";
+
 export function getJsZip() {
   return jszip;
 }

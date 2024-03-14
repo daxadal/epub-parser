@@ -1,6 +1,6 @@
 import { convertableToString } from "xml2js";
 
-import { extractText } from "./epub-parser";
+import { extractText } from "./zip-utils";
 
 export function setPrefix(attrs: { [x: string]: string }): string {
   const foundEntry = Object.entries(attrs).find(
