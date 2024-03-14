@@ -21,7 +21,7 @@ describe("Compatibility", () => {
   describe("epub-parser", () => {
     test("The library returns the same output as the original", async () => {
       const oldEpub = await oldOpen(EPUB_PATH);
-      const newEpub = await newOpen(EPUB_PATH);
+      const newEpub = await newOpen(EPUB_PATH, { mode: "legacy" });
 
       expect(newEpub).toEqual(oldEpub);
     });

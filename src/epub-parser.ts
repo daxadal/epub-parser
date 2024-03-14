@@ -36,7 +36,14 @@ export function extractBinary(filename: any) {
   }
 }
 
-export async function open(filename: string | Buffer): Promise<unknown> {
+interface OpenOptions {
+  mode: "legacy" | "extended";
+}
+
+export async function open(
+  filename: string | Buffer,
+  options: OpenOptions = { mode: "extended" }
+): Promise<unknown> {
   /*
 
 			"filename" is still called "filename" but now it can be
@@ -68,7 +75,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     metadata: any,
     manifest: any,
     spine: { itemref: any; $: { toc: any } },
-    // guide: any,
+    guide: any,
     nav: any,
     root: string,
     ns: string,
@@ -83,7 +90,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
   let itemHashById;
   let itemHashByHref;
   let linearSpine;
-  // let spineOrder: any[];
+  let spineOrder: any[];
   let simpleMeta: Record<string, any>[];
 
   function readAndParseData(
@@ -170,7 +177,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
 
     ({ metadata, manifest, spine } = parsePackageElements(opf, opfPrefix));
 
-    // guide = opf?.[opfPrefix + "guide"]?.[0];
+    guide = opf?.[opfPrefix + "guide"]?.[0];
 
     ncxId = spine?.$?.toc;
 
@@ -182,10 +189,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     ({ itemHashById, itemHashByHref, epub3CoverId, epub3NavId, epub3NavHtml } =
       buildItemHashes(itemlist, opsRoot));
 
-    ({ /* spineOrder, */ linearSpine } = buildLinearSpine(
-      itemreflist,
-      itemHashById
-    ));
+    ({ spineOrder, linearSpine } = buildLinearSpine(itemreflist, itemHashById));
 
     // metadata
     ({
@@ -210,7 +214,10 @@ export async function open(filename: string | Buffer): Promise<unknown> {
       const navJSON = await parser.parseStringPromise(epub3NavHtml);
 
       nav = navJSON;
-      epubdata = getEpubDataBlock();
+      epubdata =
+        options.mode === "legacy"
+          ? getEpubDataBlock()
+          : getExtendedEpubDataBlock();
 
       return epubdata;
     } else {
@@ -246,8 +253,10 @@ export async function open(filename: string | Buffer): Promise<unknown> {
         htmlNav += processNavPoint(navPoints[i]);
       }
       htmlNav += "</ul>" + "\n";
-      epubdata = getEpubDataBlock();
-
+      epubdata =
+        options.mode === "legacy"
+          ? getEpubDataBlock()
+          : getExtendedEpubDataBlock();
       return epubdata;
     }
   }
@@ -295,6 +304,14 @@ export async function open(filename: string | Buffer): Promise<unknown> {
           ncxXML: ncxDataXML,
         },
       },
+    };
+  }
+
+  function getExtendedEpubDataBlock() {
+    return {
+      ...getEpubDataBlock(),
+      guide,
+      spineOrder,
     };
   }
 
