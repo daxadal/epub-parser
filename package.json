@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "eslint ./src",
     "lint:fix": "eslint ./src --fix",
-    "test": "ts-node ./test/parse.ts test/testbook.epub",
+    "test": "jest --runInBand",
     "tsc": "rm -rf dist && tsc --project tsconfig.compile.json"
   },
   "dependencies": {
