@@ -293,8 +293,13 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     };
   }
 
+  const buffer = await transformToBuffer(filename);
+  return readAndParseData(buffer);
+} // end #open function definition block
+
+async function transformToBuffer(filename: string | Buffer) {
   if (Buffer.isBuffer(filename)) {
-    return readAndParseData(filename);
+    return filename;
   } else if (/^https?:\/\//i.exec(filename)) {
     // is a URL
 
@@ -313,14 +318,14 @@ export async function open(filename: string | Buffer): Promise<unknown> {
         }
       )
     );
-    return readAndParseData(body);
+    return body;
   } else {
     // assume local full path to file
 
     const data = await fs.readFile(filename, "binary");
-    return readAndParseData(data);
+    return data;
   }
-} // end #open function definition block
+}
 
 export function getZip() {
   return zip;
