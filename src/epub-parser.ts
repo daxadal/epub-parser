@@ -4,6 +4,7 @@ import crypto from "crypto";
 import jszip from "jszip";
 import { Parser, convertableToString } from "xml2js";
 import request from "request";
+
 import {
   parsePackageElements,
   buildItemHashes,
@@ -67,14 +68,14 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     metadata: any,
     manifest: any,
     spine: { itemref: any; $: { toc: any } },
-    guide: any,
+    // guide: any,
     nav: any,
     root: string,
     ns: string,
     ncxId: any,
     epub3CoverId: any,
     epub3NavId: any,
-    epub3NavHtml: convertableToString,
+    epub3NavHtml: string | undefined,
     epub2CoverUrl: string | null,
     isEpub3: boolean,
     epubVersion: string;
@@ -82,7 +83,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
   let itemHashById;
   let itemHashByHref;
   let linearSpine;
-  let spineOrder: any[];
+  // let spineOrder: any[];
   let simpleMeta: Record<string, any>[];
 
   function readAndParseData(
@@ -169,7 +170,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
 
     ({ metadata, manifest, spine } = parsePackageElements(opf, opfPrefix));
 
-    guide = opf?.[opfPrefix + "guide"]?.[0];
+    // guide = opf?.[opfPrefix + "guide"]?.[0];
 
     ncxId = spine?.$?.toc;
 
@@ -181,7 +182,10 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     ({ itemHashById, itemHashByHref, epub3CoverId, epub3NavId, epub3NavHtml } =
       buildItemHashes(itemlist, opsRoot));
 
-    ({ spineOrder, linearSpine } = buildLinearSpine(itemreflist, itemHashById));
+    ({ /* spineOrder, */ linearSpine } = buildLinearSpine(
+      itemreflist,
+      itemHashById
+    ));
 
     // metadata
     ({
@@ -207,6 +211,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
 
       nav = navJSON;
       epubdata = getEpubDataBlock();
+
       return epubdata;
     } else {
       // epub 2, use ncx doc
@@ -242,6 +247,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
       }
       htmlNav += "</ul>" + "\n";
       epubdata = getEpubDataBlock();
+
       return epubdata;
     }
   }
@@ -294,7 +300,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
 
   if (Buffer.isBuffer(filename)) {
     return readAndParseData(filename);
-  } else if (filename.match(/^https?:\/\//i)) {
+  } else if (/^https?:\/\//i.exec(filename)) {
     // is a URL
 
     const body = await new Promise<Buffer>((resolve, reject) =>

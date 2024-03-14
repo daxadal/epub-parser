@@ -1,11 +1,9 @@
-import { convertableToString } from "xml2js";
-
 import { extractText } from "./epub-parser";
 
 export function setPrefix(attrs: { [x: string]: string }): string {
   const foundEntry = Object.entries(attrs).find(
     ([att, value]) =>
-      att.match(/^xmlns:/) && value === "http://www.daisy.org/z3986/2005/ncx/"
+      /^xmlns:/.exec(att) && value === "http://www.daisy.org/z3986/2005/ncx/"
   );
   return foundEntry ? foundEntry[0].replace(/^xmlns:/, "") + ":" : "";
 }
@@ -42,9 +40,7 @@ export function buildItemHashes(
 ) {
   const itemHashById = {};
   const itemHashByHref = {};
-  let epub3CoverId: any,
-    epub3NavId: any,
-    epub3NavHtml: convertableToString = "";
+  let epub3CoverId: any, epub3NavId: any, epub3NavHtml: string | undefined;
 
   for (const item in itemlist) {
     const href = itemlist[item].$.href;
@@ -100,7 +96,8 @@ export function buildMetadataLists(
 ) {
   let epub2CoverUrl: string | null = null;
   const simpleMeta: Record<string, any>[] = [];
-  let uniqueIdentifierValue: string | undefined, uniqueIdentifierScheme: any;
+  let uniqueIdentifierValue: string | undefined,
+    uniqueIdentifierScheme: any = null;
 
   for (const prop in metas) {
     if (prop === "meta") {
@@ -146,7 +143,7 @@ export function buildMetadataLists(
       }
 
       if (
-        prop.match(/identifier$/i) &&
+        /identifier$/i.exec(prop) &&
         metas[prop][0].$.id &&
         metas[prop][0].$.id === uniqueIdentifier
       ) {
