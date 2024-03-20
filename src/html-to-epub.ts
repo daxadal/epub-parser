@@ -17,7 +17,7 @@ import { remove as diacritics } from "diacritics";
 import { renderFile } from "ejs";
 import { encodeXML } from "entities";
 import fsExtra, { copySync, removeSync } from "fs-extra";
-import { Element } from "hast";
+import type { Element } from "hast";
 import { imageSize } from "image-size";
 import mime from "mime";
 import rehypeParse from "rehype-parse";
