@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from "fs";
 import { basename, dirname, resolve } from "path";
-import { fileURLToPath } from "url";
+// import { fileURLToPath } from "url";
 import { promisify } from "util";
 
 import archiver from "archiver";
@@ -43,7 +43,7 @@ function uuid() {
 }
 
 // Current directory
-const __dirname = fileURLToPath(new URL(".", import.meta.url));
+// const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 export class EPub {
   uuid: string;
