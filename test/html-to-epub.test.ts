@@ -1,4 +1,3 @@
-import assert from "assert";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 import { fileURLToPath } from "url";
@@ -19,18 +18,22 @@ async function runTestOn(input: string): Promise<boolean> {
   return op.result === "ok";
 }
 
-it("Ebook > generate v2", async () => {
-  assert.strictEqual(await runTestOn("book-v2"), true);
-});
+describe("html-to-epub", () => {
+  describe("Generate", () => {
+    it("Ebook > generate v2", async () => {
+      expect(await runTestOn("book-v2")).toStrictEqual(true);
+    });
 
-it("Ebook > generate v3", async () => {
-  assert.strictEqual(await runTestOn("book-v3"), true);
-});
+    it("Ebook > generate v3", async () => {
+      expect(await runTestOn("book-v3")).toStrictEqual(true);
+    });
 
-it("HTML Page > generate v2", async () => {
-  assert.strictEqual(await runTestOn("article-v2"), true);
-});
+    it("HTML Page > generate v2", async () => {
+      expect(await runTestOn("article-v2")).toStrictEqual(true);
+    });
 
-it("HTML Page > generate v3", async () => {
-  assert.strictEqual(await runTestOn("article-v3"), true);
+    it("HTML Page > generate v3", async () => {
+      expect(await runTestOn("article-v3")).toStrictEqual(true);
+    });
+  });
 });
