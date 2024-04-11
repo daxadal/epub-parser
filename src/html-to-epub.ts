@@ -133,15 +133,6 @@ export class EPub {
       this.coverExtension = null;
     }
 
-    const loadHtml = (content: string, plugins: Plugin[]) =>
-      unified()
-        .use(rehypeParse, { fragment: true })
-        .use(plugins)
-        // Voids: [] is required for epub generation, and causes little/no harm for non-epub usage
-        .use(rehypeStringify, { allowDangerousHtml: true, voids: [] })
-        .processSync(content)
-        .toString();
-
     this.images = [];
     this.content = [];
 
@@ -178,15 +169,23 @@ export class EPub {
       ...options.content.map<EpubContent>((content, i) => {
         const index = contentOffset + i;
 
-        return this.parseContent(content, index, loadHtml, contentTemplatePath);
+        return this.parseContent(content, index, contentTemplatePath);
       })
     );
   }
 
+  readonly loadHtml = (content: string, plugins: Plugin[]) =>
+    unified()
+      .use(rehypeParse, { fragment: true })
+      .use(plugins)
+      // Voids: [] is required for epub generation, and causes little/no harm for non-epub usage
+      .use(rehypeStringify, { allowDangerousHtml: true, voids: [] })
+      .processSync(content)
+      .toString();
+
   private parseContent(
     content: EpubContentOptions,
     index: number,
-    loadHtml: (content: string, plugins: Plugin[]) => string,
     contentTemplatePath: string
   ) {
     // Get the content URL & path
@@ -217,26 +216,21 @@ export class EPub {
     const dir = dirname(filePath);
 
     // Parse the content
-    const html = loadHtml(content.data, [
+    const html = this.loadHtml(content.data, [
       () => (tree) => {
         const validateElements = (node: Element) => {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           const attrs = node.properties!;
-          if (["img", "br", "hr"].includes(node.tagName)) {
-            if (node.tagName === "img") {
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              node.properties!.alt =
-                node.properties?.alt || "image-placeholder";
-            }
+          if (node.tagName === "img") {
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            node.properties!.alt = node.properties?.alt || "image-placeholder";
           }
 
           for (const k of Object.keys(attrs)) {
             if (allowedAttributes.includes(k)) {
-              if (k === "type") {
-                if (attrs[k] !== "script") {
-                  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                  delete node.properties![k];
-                }
+              if (k === "type" && attrs[k] !== "script") {
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                delete node.properties![k];
               }
             } else {
               // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -244,17 +238,18 @@ export class EPub {
             }
           }
 
-          if (this.version === 2) {
-            if (!allowedXhtml11Tags.includes(node.tagName)) {
-              if (this.verbose) {
-                console.log(
-                  "Warning (content[" + index + "]):",
-                  node.tagName,
-                  "tag isn't allowed on EPUB 2/XHTML 1.1 DTD."
-                );
-              }
-              node.tagName = "div";
+          if (
+            this.version === 2 &&
+            !allowedXhtml11Tags.includes(node.tagName)
+          ) {
+            if (this.verbose) {
+              console.log(
+                "Warning (content[" + index + "]):",
+                node.tagName,
+                "tag isn't allowed on EPUB 2/XHTML 1.1 DTD."
+              );
             }
+            node.tagName = "div";
           }
         };
 
