@@ -7,4 +7,5 @@ module.exports = {
     "^.+\\.(ts|js)$": "ts-jest",
   },
   testTimeout: 10000,
+  testEnvironment: "node",
 };

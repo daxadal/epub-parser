@@ -8,7 +8,6 @@ import {
   writeFileSync,
 } from "fs";
 import { basename, dirname, resolve } from "path";
-import { fileURLToPath } from "url";
 import { promisify } from "util";
 
 import archiver from "archiver";
@@ -17,7 +16,7 @@ import { remove as diacritics } from "diacritics";
 import { renderFile } from "ejs";
 import { encodeXML } from "entities";
 import fsExtra, { copySync, removeSync } from "fs-extra";
-import { Element } from "hast";
+import type { Element } from "hast";
 import { imageSize } from "image-size";
 import mime from "mime";
 import rehypeParse from "rehype-parse";
@@ -25,289 +24,15 @@ import rehypeStringify from "rehype-stringify";
 import { Plugin, unified } from "unified";
 import { visit } from "unist-util-visit";
 import uslug from "uslug";
+import { v4 as uuidV4 } from "uuid";
 
-// Allowed HTML attributes & tags
-const allowedAttributes = [
-  "content",
-  "alt",
-  "id",
-  "title",
-  "src",
-  "href",
-  "about",
-  "accesskey",
-  "aria-activedescendant",
-  "aria-atomic",
-  "aria-autocomplete",
-  "aria-busy",
-  "aria-checked",
-  "aria-controls",
-  "aria-describedat",
-  "aria-describedby",
-  "aria-disabled",
-  "aria-dropeffect",
-  "aria-expanded",
-  "aria-flowto",
-  "aria-grabbed",
-  "aria-haspopup",
-  "aria-hidden",
-  "aria-invalid",
-  "aria-label",
-  "aria-labelledby",
-  "aria-level",
-  "aria-live",
-  "aria-multiline",
-  "aria-multiselectable",
-  "aria-orientation",
-  "aria-owns",
-  "aria-posinset",
-  "aria-pressed",
-  "aria-readonly",
-  "aria-relevant",
-  "aria-required",
-  "aria-selected",
-  "aria-setsize",
-  "aria-sort",
-  "aria-valuemax",
-  "aria-valuemin",
-  "aria-valuenow",
-  "aria-valuetext",
-  "className",
-  "content",
-  "contenteditable",
-  "contextmenu",
-  "datatype",
-  "dir",
-  "draggable",
-  "dropzone",
-  "hidden",
-  "hreflang",
-  "id",
-  "inlist",
-  "itemid",
-  "itemref",
-  "itemscope",
-  "itemtype",
-  "lang",
-  "media",
-  "ns1:type",
-  "ns2:alphabet",
-  "ns2:ph",
-  "onabort",
-  "onblur",
-  "oncanplay",
-  "oncanplaythrough",
-  "onchange",
-  "onclick",
-  "oncontextmenu",
-  "ondblclick",
-  "ondrag",
-  "ondragend",
-  "ondragenter",
-  "ondragleave",
-  "ondragover",
-  "ondragstart",
-  "ondrop",
-  "ondurationchange",
-  "onemptied",
-  "onended",
-  "onerror",
-  "onfocus",
-  "oninput",
-  "oninvalid",
-  "onkeydown",
-  "onkeypress",
-  "onkeyup",
-  "onload",
-  "onloadeddata",
-  "onloadedmetadata",
-  "onloadstart",
-  "onmousedown",
-  "onmousemove",
-  "onmouseout",
-  "onmouseover",
-  "onmouseup",
-  "onmousewheel",
-  "onpause",
-  "onplay",
-  "onplaying",
-  "onprogress",
-  "onratechange",
-  "onreadystatechange",
-  "onreset",
-  "onscroll",
-  "onseeked",
-  "onseeking",
-  "onselect",
-  "onshow",
-  "onstalled",
-  "onsubmit",
-  "onsuspend",
-  "ontimeupdate",
-  "onvolumechange",
-  "onwaiting",
-  "prefix",
-  "property",
-  "rel",
-  "resource",
-  "rev",
-  "role",
-  "spellcheck",
-  "style",
-  "tabindex",
-  "target",
-  "title",
-  "type",
-  "typeof",
-  "vocab",
-  "xml:base",
-  "xml:lang",
-  "xml:space",
-  "colspan",
-  "rowspan",
-  "epub:type",
-  "epub:prefix",
-];
-const allowedXhtml11Tags = [
-  "div",
-  "p",
-  "h1",
-  "h2",
-  "h3",
-  "h4",
-  "h5",
-  "h6",
-  "ul",
-  "ol",
-  "li",
-  "dl",
-  "dt",
-  "dd",
-  "address",
-  "hr",
-  "pre",
-  "blockquote",
-  "center",
-  "ins",
-  "del",
-  "a",
-  "span",
-  "bdo",
-  "br",
-  "em",
-  "strong",
-  "dfn",
-  "code",
-  "samp",
-  "kbd",
-  "bar",
-  "cite",
-  "abbr",
-  "acronym",
-  "q",
-  "sub",
-  "sup",
-  "tt",
-  "i",
-  "b",
-  "big",
-  "small",
-  "u",
-  "s",
-  "strike",
-  "basefont",
-  "font",
-  "object",
-  "param",
-  "img",
-  "table",
-  "caption",
-  "colgroup",
-  "col",
-  "thead",
-  "tfoot",
-  "tbody",
-  "tr",
-  "th",
-  "td",
-  "embed",
-  "applet",
-  "iframe",
-  "img",
-  "map",
-  "noscript",
-  "ns:svg",
-  "object",
-  "script",
-  "table",
-  "tt",
-  "var",
-];
-
-// UUID generation
-function uuid() {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
-
-// Current directory
-const __dirname = fileURLToPath(new URL(".", import.meta.url));
-
-export interface EpubContentOptions {
-  title: string;
-  data: string;
-  url?: string;
-  author?: Array<string> | string;
-  filename?: string;
-  excludeFromToc?: boolean;
-  beforeToc?: boolean;
-}
-
-export interface EpubOptions {
-  title: string;
-  description: string;
-  cover?: string;
-  publisher?: string;
-  author?: Array<string> | string;
-  tocTitle?: string;
-  appendChapterTitles?: boolean;
-  date?: string;
-  lang?: string;
-  css?: string;
-  fonts?: Array<string>;
-  content: Array<EpubContentOptions>;
-  customOpfTemplatePath?: string;
-  customNcxTocTemplatePath?: string;
-  customHtmlTocTemplatePath?: string;
-  customHtmlCoverTemplatePath?: string;
-  version?: number;
-  userAgent?: string;
-  verbose?: boolean;
-  tempDir?: string;
-}
-
-interface EpubContent {
-  id: string;
-  href: string;
-  title: string;
-  data: string;
-  url: string | null;
-  author: Array<string>;
-  filePath: string;
-  templatePath: string;
-  excludeFromToc: boolean;
-  beforeToc: boolean;
-}
-
-interface EpubImage {
-  id: string;
-  url: string;
-  dir: string;
-  mediaType: string;
-  extension: string;
-}
+import { allowedAttributes, allowedXhtml11Tags } from "./constants-gen";
+import {
+  EpubContent,
+  EpubContentOptions,
+  EpubImage,
+  EpubOptions,
+} from "./html-to-epub.types";
 
 export class EPub {
   uuid: string;
@@ -343,7 +68,7 @@ export class EPub {
 
   constructor(options: EpubOptions, output: string) {
     // File ID
-    this.uuid = uuid();
+    this.uuid = uuidV4();
 
     // Required options
     this.title = options.title;
@@ -397,15 +122,6 @@ export class EPub {
       this.coverExtension = null;
     }
 
-    const loadHtml = (content: string, plugins: Plugin[]) =>
-      unified()
-        .use(rehypeParse, { fragment: true })
-        .use(plugins)
-        // Voids: [] is required for epub generation, and causes little/no harm for non-epub usage
-        .use(rehypeStringify, { allowDangerousHtml: true, voids: [] })
-        .processSync(content)
-        .toString();
-
     this.images = [];
     this.content = [];
 
@@ -442,144 +158,157 @@ export class EPub {
       ...options.content.map<EpubContent>((content, i) => {
         const index = contentOffset + i;
 
-        // Get the content URL & path
-        let href, filePath;
-        if (content.filename === undefined) {
-          const titleSlug = uslug(diacritics(content.title || "no title"));
-          href = `${index}_${titleSlug}.xhtml`;
-          filePath = resolve(
-            this.tempEpubDir,
-            `./OEBPS/${index}_${titleSlug}.xhtml`
-          );
-        } else {
-          href = content.filename.match(/\.xhtml$/)
-            ? content.filename
-            : `${content.filename}.xhtml`;
-          if (content.filename.match(/\.xhtml$/)) {
-            filePath = resolve(this.tempEpubDir, `./OEBPS/${content.filename}`);
-          } else {
-            filePath = resolve(
-              this.tempEpubDir,
-              `./OEBPS/${content.filename}.xhtml`
-            );
-          }
-        }
-
-        // Content ID & directory
-        const id = `item_${index}`;
-        const dir = dirname(filePath);
-
-        // Parse the content
-        const html = loadHtml(content.data, [
-          () => (tree) => {
-            const validateElements = (node: Element) => {
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              const attrs = node.properties!;
-              if (["img", "br", "hr"].includes(node.tagName)) {
-                if (node.tagName === "img") {
-                  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                  node.properties!.alt =
-                    node.properties?.alt || "image-placeholder";
-                }
-              }
-
-              for (const k of Object.keys(attrs)) {
-                if (allowedAttributes.includes(k)) {
-                  if (k === "type") {
-                    if (attrs[k] !== "script") {
-                      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                      delete node.properties![k];
-                    }
-                  }
-                } else {
-                  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                  delete node.properties![k];
-                }
-              }
-
-              if (this.version === 2) {
-                if (!allowedXhtml11Tags.includes(node.tagName)) {
-                  if (this.verbose) {
-                    console.log(
-                      "Warning (content[" + index + "]):",
-                      node.tagName,
-                      "tag isn't allowed on EPUB 2/XHTML 1.1 DTD."
-                    );
-                  }
-                  node.tagName = "div";
-                }
-              }
-            };
-
-            visit(tree, "element", validateElements);
-          },
-          () => (tree) => {
-            const processImgTags = (node: Element) => {
-              if (!["img", "input"].includes(node.tagName)) {
-                return;
-              }
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              const url = node.properties!.src as string | null | undefined;
-              if (url === undefined || url === null) {
-                return;
-              }
-
-              let extension, id;
-              const image = this.images.find((element) => element.url === url);
-              if (image) {
-                id = image.id;
-                extension = image.extension;
-              } else {
-                id = uuid();
-                const mediaType = mime.getType(url.replace(/\?.*/, ""));
-                if (mediaType === null) {
-                  if (this.verbose) {
-                    console.error(
-                      "[Image Error]",
-                      `The image can't be processed : ${url}`
-                    );
-                  }
-                  return;
-                }
-                extension = mime.getExtension(mediaType);
-                if (extension === null) {
-                  if (this.verbose) {
-                    console.error(
-                      "[Image Error]",
-                      `The image can't be processed : ${url}`
-                    );
-                  }
-                  return;
-                }
-                this.images.push({ id, url, dir, mediaType, extension });
-              }
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              node.properties!.src = `images/${id}.${extension}`;
-            };
-
-            visit(tree, "element", processImgTags);
-          },
-        ]);
-
-        // Return the EpubContent
-        return {
-          id,
-          href,
-          title: content.title,
-          data: html,
-          url: content.url ?? null,
-          author: content.author
-            ? typeof content.author === "string"
-              ? [content.author]
-              : content.author
-            : [],
-          filePath,
-          templatePath: contentTemplatePath,
-          excludeFromToc: content.excludeFromToc === true, // Default to false
-          beforeToc: content.beforeToc === true, // Default to false
-        };
+        return this.parseContent(content, index, contentTemplatePath);
       })
     );
+  }
+
+  readonly loadHtml = (content: string, plugins: Plugin[]) =>
+    unified()
+      .use(rehypeParse, { fragment: true })
+      .use(plugins)
+      // Voids: [] is required for epub generation, and causes little/no harm for non-epub usage
+      .use(rehypeStringify, { allowDangerousHtml: true, voids: [] })
+      .processSync(content)
+      .toString();
+
+  private parseContent(
+    content: EpubContentOptions,
+    index: number,
+    contentTemplatePath: string
+  ) {
+    // Get the content URL & path
+    let href, filePath;
+    if (content.filename === undefined) {
+      const titleSlug = uslug(diacritics(content.title || "no title"));
+      href = `${index}_${titleSlug}.xhtml`;
+      filePath = resolve(
+        this.tempEpubDir,
+        `./OEBPS/${index}_${titleSlug}.xhtml`
+      );
+    } else {
+      href = content.filename.match(/\.xhtml$/)
+        ? content.filename
+        : `${content.filename}.xhtml`;
+      if (content.filename.match(/\.xhtml$/)) {
+        filePath = resolve(this.tempEpubDir, `./OEBPS/${content.filename}`);
+      } else {
+        filePath = resolve(
+          this.tempEpubDir,
+          `./OEBPS/${content.filename}.xhtml`
+        );
+      }
+    }
+
+    // Content ID & directory
+    const id = `item_${index}`;
+    const dir = dirname(filePath);
+
+    // Parse the content
+    const html = this.loadHtml(content.data, [
+      () => (tree) => {
+        const validateElements = (node: Element) => {
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          const attrs = node.properties!;
+          if (node.tagName === "img") {
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            node.properties!.alt = node.properties?.alt || "image-placeholder";
+          }
+
+          for (const k of Object.keys(attrs)) {
+            if (allowedAttributes.includes(k)) {
+              if (k === "type" && attrs[k] !== "script") {
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                delete node.properties![k];
+              }
+            } else {
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              delete node.properties![k];
+            }
+          }
+
+          if (
+            this.version === 2 &&
+            !allowedXhtml11Tags.includes(node.tagName)
+          ) {
+            if (this.verbose) {
+              console.log(
+                "Warning (content[" + index + "]):",
+                node.tagName,
+                "tag isn't allowed on EPUB 2/XHTML 1.1 DTD."
+              );
+            }
+            node.tagName = "div";
+          }
+        };
+
+        visit(tree, "element", validateElements);
+      },
+      () => (tree) => {
+        const processImgTags = (node: Element) => {
+          if (!["img", "input"].includes(node.tagName)) {
+            return;
+          }
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          const url = node.properties!.src as string | null | undefined;
+          if (url === undefined || url === null) {
+            return;
+          }
+
+          let extension, id;
+          const image = this.images.find((element) => element.url === url);
+          if (image) {
+            id = image.id;
+            extension = image.extension;
+          } else {
+            id = uuidV4();
+            const mediaType = mime.getType(url.replace(/\?.*/, ""));
+            if (mediaType === null) {
+              if (this.verbose) {
+                console.error(
+                  "[Image Error]",
+                  `The image can't be processed : ${url}`
+                );
+              }
+              return;
+            }
+            extension = mime.getExtension(mediaType);
+            if (extension === null) {
+              if (this.verbose) {
+                console.error(
+                  "[Image Error]",
+                  `The image can't be processed : ${url}`
+                );
+              }
+              return;
+            }
+            this.images.push({ id, url, dir, mediaType, extension });
+          }
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          node.properties!.src = `images/${id}.${extension}`;
+        };
+
+        visit(tree, "element", processImgTags);
+      },
+    ]);
+
+    // Return the EpubContent
+    return {
+      id,
+      href,
+      title: content.title,
+      data: html,
+      url: content.url ?? null,
+      author: content.author
+        ? typeof content.author === "string"
+          ? [content.author]
+          : content.author
+        : [],
+      filePath,
+      templatePath: contentTemplatePath,
+      excludeFromToc: content.excludeFromToc === true, // Default to false
+      beforeToc: content.beforeToc === true, // Default to false
+    };
   }
 
   async render(): Promise<{ result: string }> {
