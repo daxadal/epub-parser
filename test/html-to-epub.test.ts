@@ -2,7 +2,8 @@ import assert from "assert";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
-import { EPub, EpubOptions } from "../src/html-to-epub";
+import { EPub } from "../src/html-to-epub";
+import { EpubOptions } from "../src/html-to-epub.types";
 
 async function runTestOn(input: string): Promise<boolean> {
   const params = JSON.parse(
