@@ -8,7 +8,6 @@ import {
   writeFileSync,
 } from "fs";
 import { basename, dirname, resolve } from "path";
-// import { fileURLToPath } from "url";
 import { promisify } from "util";
 
 import archiver from "archiver";
@@ -25,6 +24,7 @@ import rehypeStringify from "rehype-stringify";
 import { Plugin, unified } from "unified";
 import { visit } from "unist-util-visit";
 import uslug from "uslug";
+import { v4 as uuidV4 } from "uuid";
 
 import { allowedAttributes, allowedXhtml11Tags } from "./constants-gen";
 import {
@@ -33,17 +33,6 @@ import {
   EpubImage,
   EpubOptions,
 } from "./html-to-epub.types";
-
-// UUID generation
-function uuid() {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
-
-// Current directory
-// const __dirname = fileURLToPath(new URL(".", import.meta.url));
 
 export class EPub {
   uuid: string;
@@ -79,7 +68,7 @@ export class EPub {
 
   constructor(options: EpubOptions, output: string) {
     // File ID
-    this.uuid = uuid();
+    this.uuid = uuidV4();
 
     // Required options
     this.title = options.title;
@@ -272,7 +261,7 @@ export class EPub {
             id = image.id;
             extension = image.extension;
           } else {
-            id = uuid();
+            id = uuidV4();
             const mediaType = mime.getType(url.replace(/\?.*/, ""));
             if (mediaType === null) {
               if (this.verbose) {
