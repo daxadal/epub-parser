@@ -78,14 +78,12 @@ export class EPub {
     // Options with defaults
     this.cover = options.cover ?? null;
     this.publisher = options.publisher ?? "anonymous";
-    this.author = options.author
-      ? typeof options.author === "string"
+    this.author =
+      Array.isArray(options.author) && options.author.length > 0
+        ? options.author
+        : typeof options.author === "string"
         ? [options.author]
-        : options.author
-      : ["anonymous"];
-    if (this.author.length === 0) {
-      this.author = ["anonymous"];
-    }
+        : ["anonymous"];
     this.tocTitle = options.tocTitle ?? "Table Of Contents";
     this.appendChapterTitles = options.appendChapterTitles ?? true;
     this.date = options.date ?? new Date().toISOString();
@@ -128,7 +126,7 @@ export class EPub {
     // Insert cover in content
     if (this.cover) {
       const templatePath =
-        this.customHtmlCoverTemplatePath ||
+        this.customHtmlCoverTemplatePath ??
         resolve(__dirname, "../templates/cover.xhtml.ejs");
       if (!existsSync(templatePath)) {
         throw new Error("Could not resolve path to cover template HTML.");
@@ -178,27 +176,16 @@ export class EPub {
     contentTemplatePath: string
   ) {
     // Get the content URL & path
-    let href, filePath;
+    let href;
     if (content.filename === undefined) {
-      const titleSlug = uslug(diacritics(content.title || "no title"));
+      const titleSlug = uslug(diacritics(content.title ?? "no title"));
       href = `${index}_${titleSlug}.xhtml`;
-      filePath = resolve(
-        this.tempEpubDir,
-        `./OEBPS/${index}_${titleSlug}.xhtml`
-      );
+    } else if (/\.xhtml$/.exec(content.filename)) {
+      href = content.filename;
     } else {
-      href = content.filename.match(/\.xhtml$/)
-        ? content.filename
-        : `${content.filename}.xhtml`;
-      if (content.filename.match(/\.xhtml$/)) {
-        filePath = resolve(this.tempEpubDir, `./OEBPS/${content.filename}`);
-      } else {
-        filePath = resolve(
-          this.tempEpubDir,
-          `./OEBPS/${content.filename}.xhtml`
-        );
-      }
+      href = `${content.filename}.xhtml`;
     }
+    const filePath = resolve(this.tempEpubDir, `./OEBPS/${href}`);
 
     // Content ID & directory
     const id = `item_${index}`;
@@ -208,22 +195,18 @@ export class EPub {
     const html = this.loadHtml(content.data, [
       () => (tree) => {
         const validateElements = (node: Element) => {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const attrs = node.properties!;
+          const attrs = node.properties;
           if (node.tagName === "img") {
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            node.properties!.alt = node.properties?.alt || "image-placeholder";
+            node.properties.alt = node.properties.alt ?? "image-placeholder";
           }
 
           for (const k of Object.keys(attrs)) {
             if (allowedAttributes.includes(k)) {
               if (k === "type" && attrs[k] !== "script") {
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-                delete node.properties![k];
+                delete node.properties[k];
               }
             } else {
-              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-              delete node.properties![k];
+              delete node.properties[k];
             }
           }
 
@@ -249,8 +232,7 @@ export class EPub {
           if (!["img", "input"].includes(node.tagName)) {
             return;
           }
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const url = node.properties!.src as string | null | undefined;
+          const url = node.properties.src as string | null | undefined;
           if (url === undefined || url === null) {
             return;
           }
@@ -284,8 +266,7 @@ export class EPub {
             }
             this.images.push({ id, url, dir, mediaType, extension });
           }
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          node.properties!.src = `images/${id}.${extension}`;
+          node.properties.src = `images/${id}.${extension}`;
         };
 
         visit(tree, "element", processImgTags);
@@ -420,7 +401,7 @@ export class EPub {
     }
 
     const opfPath =
-      this.customOpfTemplatePath ||
+      this.customOpfTemplatePath ??
       resolve(__dirname, `../templates/epub${this.version}/content.opf.ejs`);
     if (!existsSync(opfPath)) {
       throw new Error("Custom file to OPF template not found.");
@@ -431,7 +412,7 @@ export class EPub {
     );
 
     const ncxTocPath =
-      this.customNcxTocTemplatePath ||
+      this.customNcxTocTemplatePath ??
       resolve(__dirname, "../templates/toc.ncx.ejs");
     if (!existsSync(ncxTocPath)) {
       throw new Error("Custom file the NCX toc template not found.");
@@ -442,7 +423,7 @@ export class EPub {
     );
 
     const htmlTocPath =
-      this.customHtmlTocTemplatePath ||
+      this.customHtmlTocTemplatePath ??
       resolve(__dirname, `../templates/epub${this.version}/toc.xhtml.ejs`);
     if (!existsSync(htmlTocPath)) {
       throw new Error("Custom file to HTML toc template not found.");
