@@ -66,6 +66,19 @@ export class EPub {
   tempEpubDir: string;
   output: string;
 
+  readonly logger = {
+    log: (...args: any[]) => {
+      if (this.verbose) {
+        console.log(...args);
+      }
+    },
+    error: (...args: any[]) => {
+      if (this.verbose) {
+        console.log(...args);
+      }
+    },
+  };
+
   constructor(options: EpubOptions, output: string) {
     // File ID
     this.uuid = uuidV4();
@@ -214,13 +227,12 @@ export class EPub {
             this.version === 2 &&
             !allowedXhtml11Tags.includes(node.tagName)
           ) {
-            if (this.verbose) {
-              console.log(
-                "Warning (content[" + index + "]):",
-                node.tagName,
-                "tag isn't allowed on EPUB 2/XHTML 1.1 DTD."
-              );
-            }
+            this.logger.log(
+              "Warning (content[" + index + "]):",
+              node.tagName,
+              "tag isn't allowed on EPUB 2/XHTML 1.1 DTD."
+            );
+
             node.tagName = "div";
           }
         };
@@ -246,22 +258,20 @@ export class EPub {
             id = uuidV4();
             const mediaType = mime.getType(url.replace(/\?.*/, ""));
             if (mediaType === null) {
-              if (this.verbose) {
-                console.error(
-                  "[Image Error]",
-                  `The image can't be processed : ${url}`
-                );
-              }
+              this.logger.error(
+                "[Image Error]",
+                `The image can't be processed : ${url}`
+              );
+
               return;
             }
             extension = mime.getExtension(mediaType);
             if (extension === null) {
-              if (this.verbose) {
-                console.error(
-                  "[Image Error]",
-                  `The image can't be processed : ${url}`
-                );
-              }
+              this.logger.error(
+                "[Image Error]",
+                `The image can't be processed : ${url}`
+              );
+
               return;
             }
             this.images.push({ id, url, dir, mediaType, extension });
@@ -300,29 +310,19 @@ export class EPub {
     mkdirSync(this.tempEpubDir);
     mkdirSync(resolve(this.tempEpubDir, "./OEBPS"));
 
-    if (this.verbose) {
-      console.log("Downloading Images...");
-    }
+    this.logger.log("Downloading Images...");
     await this.downloadAllImage(this.images);
 
-    if (this.verbose) {
-      console.log("Making Cover...");
-    }
+    this.logger.log("Making Cover...");
     await this.makeCover();
 
-    if (this.verbose) {
-      console.log("Generating Template Files.....");
-    }
+    this.logger.log("Generating Template Files.....");
     await this.generateTempFile(this.content);
 
-    if (this.verbose) {
-      console.log("Generating Epub Files...");
-    }
+    this.logger.log("Generating Epub Files...");
     await this.generate();
 
-    if (this.verbose) {
-      console.log("Done.");
-    }
+    this.logger.log("Done.");
     return { result: "ok" };
   }
 
@@ -454,11 +454,10 @@ export class EPub {
         writeStream = httpRequest.data;
         writeStream.pipe(createWriteStream(destPath));
       } catch (err) {
-        if (this.verbose) {
-          console.error(
-            `The cover image can't be processed : ${this.cover}, ${err}`
-          );
-        }
+        this.logger.error(
+          `The cover image can't be processed : ${this.cover}, ${err}`
+        );
+
         return;
       }
     } else {
@@ -477,9 +476,7 @@ export class EPub {
 
     await promiseStream;
 
-    if (this.verbose) {
-      console.log("[Success] cover image downloaded successfully!");
-    }
+    this.logger.log("[Success] cover image downloaded successfully!");
 
     const sizeOf = promisify(imageSize);
 
@@ -494,11 +491,9 @@ export class EPub {
     this.coverDimensions.width = result.width;
     this.coverDimensions.height = result.height;
 
-    if (this.verbose) {
-      console.log(
-        `cover image dimensions: ${this.coverDimensions.width} x ${this.coverDimensions.height}`
-      );
-    }
+    this.logger.log(
+      `cover image dimensions: ${this.coverDimensions.width} x ${this.coverDimensions.height}`
+    );
   }
 
   private async downloadImage(image: EpubImage): Promise<void> {
@@ -524,9 +519,9 @@ export class EPub {
         requestAction = httpRequest.data;
         requestAction.pipe(createWriteStream(filename));
       } catch (err) {
-        if (this.verbose) {
-          console.error(`The image can't be processed : ${image.url}, ${err}`);
-        }
+        this.logger.error(
+          `The image can't be processed : ${image.url}, ${err}`
+        );
         return;
       }
     } else {
@@ -537,22 +532,19 @@ export class EPub {
     return new Promise((resolve, reject) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       requestAction.on("error", (err: any) => {
-        if (this.verbose) {
-          console.error(
-            "[Download Error]",
-            "Error while downloading",
-            image.url,
-            err
-          );
-        }
+        this.logger.error(
+          "[Download Error]",
+          "Error while downloading",
+          image.url,
+          err
+        );
+
         unlinkSync(filename);
         reject(err);
       });
 
       requestAction.on("end", () => {
-        if (this.verbose) {
-          console.log("[Download Success]", image.url);
-        }
+        this.logger.log("[Download Success]", image.url);
         resolve();
       });
     });
@@ -582,17 +574,13 @@ export class EPub {
     return new Promise((resolve, reject) => {
       const archive = archiver("zip", { zlib: { level: 9 } });
       const output = createWriteStream(this.output);
-      if (this.verbose) {
-        console.log("Zipping temp dir to", this.output);
-      }
+      this.logger.log("Zipping temp dir to", this.output);
       archive.append("application/epub+zip", { store: true, name: "mimetype" });
       archive.directory(cwd + "/META-INF", "META-INF");
       archive.directory(cwd + "/OEBPS", "OEBPS");
       archive.pipe(output);
       archive.on("end", () => {
-        if (this.verbose) {
-          console.log("Done zipping, clearing temp dir...");
-        }
+        this.logger.log("Done zipping, clearing temp dir...");
         removeSync(cwd);
         resolve();
       });
