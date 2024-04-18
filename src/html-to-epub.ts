@@ -207,79 +207,14 @@ export class EPub {
     // Parse the content
     const html = this.loadHtml(content.data, [
       () => (tree) => {
-        const validateElements = (node: Element) => {
-          const attrs = node.properties;
-          if (node.tagName === "img") {
-            node.properties.alt = node.properties.alt ?? "image-placeholder";
-          }
-
-          for (const k of Object.keys(attrs)) {
-            if (allowedAttributes.includes(k)) {
-              if (k === "type" && attrs[k] !== "script") {
-                delete node.properties[k];
-              }
-            } else {
-              delete node.properties[k];
-            }
-          }
-
-          if (
-            this.version === 2 &&
-            !allowedXhtml11Tags.includes(node.tagName)
-          ) {
-            this.logger.log(
-              "Warning (content[" + index + "]):",
-              node.tagName,
-              "tag isn't allowed on EPUB 2/XHTML 1.1 DTD."
-            );
-
-            node.tagName = "div";
-          }
-        };
-
-        visit(tree, "element", validateElements);
+        visit(tree, "element", (node: Element) =>
+          this.validateElements(node, index)
+        );
       },
       () => (tree) => {
-        const processImgTags = (node: Element) => {
-          if (!["img", "input"].includes(node.tagName)) {
-            return;
-          }
-          const url = node.properties.src as string | null | undefined;
-          if (url === undefined || url === null) {
-            return;
-          }
-
-          let extension, id;
-          const image = this.images.find((element) => element.url === url);
-          if (image) {
-            id = image.id;
-            extension = image.extension;
-          } else {
-            id = uuidV4();
-            const mediaType = mime.getType(url.replace(/\?.*/, ""));
-            if (mediaType === null) {
-              this.logger.error(
-                "[Image Error]",
-                `The image can't be processed : ${url}`
-              );
-
-              return;
-            }
-            extension = mime.getExtension(mediaType);
-            if (extension === null) {
-              this.logger.error(
-                "[Image Error]",
-                `The image can't be processed : ${url}`
-              );
-
-              return;
-            }
-            this.images.push({ id, url, dir, mediaType, extension });
-          }
-          node.properties.src = `images/${id}.${extension}`;
-        };
-
-        visit(tree, "element", processImgTags);
+        visit(tree, "element", (node: Element) =>
+          this.processImgTags(node, dir)
+        );
       },
     ]);
 
@@ -300,6 +235,72 @@ export class EPub {
       excludeFromToc: content.excludeFromToc === true, // Default to false
       beforeToc: content.beforeToc === true, // Default to false
     };
+  }
+
+  private validateElements(node: Element, index: number) {
+    const attrs = node.properties;
+    if (node.tagName === "img") {
+      node.properties.alt = node.properties.alt ?? "image-placeholder";
+    }
+
+    for (const k of Object.keys(attrs)) {
+      if (allowedAttributes.includes(k)) {
+        if (k === "type" && attrs[k] !== "script") {
+          delete node.properties[k];
+        }
+      } else {
+        delete node.properties[k];
+      }
+    }
+
+    if (this.version === 2 && !allowedXhtml11Tags.includes(node.tagName)) {
+      this.logger.log(
+        "Warning (content[" + index + "]):",
+        node.tagName,
+        "tag isn't allowed on EPUB 2/XHTML 1.1 DTD."
+      );
+
+      node.tagName = "div";
+    }
+  }
+
+  private processImgTags(node: Element, dir: string) {
+    if (!["img", "input"].includes(node.tagName)) {
+      return;
+    }
+    const url = node.properties.src as string | null | undefined;
+    if (url === undefined || url === null) {
+      return;
+    }
+
+    let extension, id;
+    const image = this.images.find((element) => element.url === url);
+    if (image) {
+      id = image.id;
+      extension = image.extension;
+    } else {
+      id = uuidV4();
+      const mediaType = mime.getType(url.replace(/\?.*/, ""));
+      if (mediaType === null) {
+        this.logger.error(
+          "[Image Error]",
+          `The image can't be processed : ${url}`
+        );
+
+        return;
+      }
+      extension = mime.getExtension(mediaType);
+      if (extension === null) {
+        this.logger.error(
+          "[Image Error]",
+          `The image can't be processed : ${url}`
+        );
+
+        return;
+      }
+      this.images.push({ id, url, dir, mediaType, extension });
+    }
+    node.properties.src = `images/${id}.${extension}`;
   }
 
   async render(): Promise<{ result: string }> {
