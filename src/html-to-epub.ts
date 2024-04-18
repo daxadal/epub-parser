@@ -1,4 +1,5 @@
 import {
+  ReadStream,
   createReadStream,
   createWriteStream,
   existsSync,
@@ -225,10 +226,10 @@ export class EPub {
       title: content.title,
       data: html,
       url: content.url ?? null,
-      author: content.author
-        ? typeof content.author === "string"
-          ? [content.author]
-          : content.author
+      author: Array.isArray(content.author)
+        ? content.author
+        : typeof content.author === "string"
+        ? [content.author]
         : [],
       filePath,
       templatePath: contentTemplatePath,
@@ -446,7 +447,7 @@ export class EPub {
     );
 
     let writeStream: fsExtra.ReadStream;
-    if (this.cover.slice(0, 4) === "http" || this.cover.slice(0, 2) === "//") {
+    if (this.cover.startsWith("http") || this.cover.startsWith("//")) {
       try {
         const httpRequest = await axios.get(this.cover, {
           responseType: "stream",
@@ -468,7 +469,7 @@ export class EPub {
 
     const promiseStream = new Promise<void>((resolve, reject) => {
       writeStream.on("end", () => resolve());
-      writeStream.on("error", (err: unknown) => {
+      writeStream.on("error", (err) => {
         console.error("Error", err);
         unlinkSync(destPath);
         reject(err);
@@ -503,15 +504,15 @@ export class EPub {
       `./OEBPS/images/${image.id}.${image.extension}`
     );
 
-    if (image.url.indexOf("file://") === 0) {
-      const auxpath = image.url.substr(7);
+    if (image.url.startsWith("file://")) {
+      const auxpath = image.url.substring(7);
       copySync(auxpath, filename);
       return;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let requestAction: any;
-    if (image.url.indexOf("http") === 0 || image.url.indexOf("//") === 0) {
+    let requestAction: ReadStream;
+    if (image.url.startsWith("http") || image.url.startsWith("//")) {
       try {
         const httpRequest = await axios.get(image.url, {
           responseType: "stream",
@@ -532,7 +533,7 @@ export class EPub {
 
     return new Promise((resolve, reject) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      requestAction.on("error", (err: any) => {
+      requestAction.on("error", (err) => {
         this.logger.error(
           "[Download Error]",
           "Error while downloading",
@@ -557,8 +558,8 @@ export class EPub {
     }
 
     mkdirSync(resolve(this.tempEpubDir, "./OEBPS/images"));
-    for (let index = 0; index < images.length; index++) {
-      await this.downloadImage(images[index]);
+    for (const image of images) {
+      await this.downloadImage(image);
     }
   }
 
@@ -586,7 +587,7 @@ export class EPub {
         resolve();
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      archive.on("error", (err: any) => reject(err));
+      archive.on("error", (err) => reject(err));
       archive.finalize();
     });
   }
