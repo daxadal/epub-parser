@@ -119,6 +119,8 @@ dist
 
 # Reportes de Jest
 junit.xml
+test/*.epub
 
 # @shelf/jest-mongodb
 globalConfig.json
+
