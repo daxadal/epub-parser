@@ -164,8 +164,8 @@ export function buildMetadataLists(
   return {
     simpleMeta,
     epub2CoverUrl,
-    primaryIdValue: primaryIdValue,
-    primaryIdSchema: primaryIdSchema,
+    primaryIdValue,
+    primaryIdSchema,
   };
 }
 export function parsePackageElements(

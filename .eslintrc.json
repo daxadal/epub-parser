@@ -20,6 +20,7 @@
     "import/order": ["warn", { "newlines-between": "always" }],
     "prettier/prettier": ["warn"],
     "prefer-const": "warn",
+    "object-shorthand": "warn",
     "no-console": "off"
   },
   "settings": {

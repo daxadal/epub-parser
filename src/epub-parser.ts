@@ -188,12 +188,8 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     ));
 
     // metadata
-    ({
-      simpleMeta,
-      epub2CoverUrl,
-      primaryIdValue,
-      primaryIdSchema,
-    } = buildMetadataLists(metadata, primaryIdName, itemHashById, opsRoot));
+    ({ simpleMeta, epub2CoverUrl, primaryIdValue, primaryIdSchema } =
+      buildMetadataLists(metadata, primaryIdName, itemHashById, opsRoot));
 
     if (!ncxId) {
       // assume epub 3 navigation doc
@@ -260,39 +256,39 @@ export async function open(filename: string | Buffer): Promise<unknown> {
           value: primaryIdValue,
           scheme: primaryIdSchema,
         },
-        epubVersion: epubVersion,
-        isEpub3: isEpub3,
-        md5: md5,
-        epub3NavHtml: epub3NavHtml,
-        navMapHTML: navMapHTML,
-        linearSpine: linearSpine,
-        itemHashById: itemHashById,
-        itemHashByHref: itemHashByHref,
-        simpleMeta: simpleMeta,
-        epub3CoverId: epub3CoverId,
-        epub3NavId: epub3NavId,
-        epub2CoverUrl: epub2CoverUrl,
+        epubVersion,
+        isEpub3,
+        md5,
+        epub3NavHtml,
+        navMapHTML,
+        linearSpine,
+        itemHashById,
+        itemHashByHref,
+        simpleMeta,
+        epub3CoverId,
+        epub3NavId,
+        epub2CoverUrl,
       },
       paths: {
-        opfPath: opfPath,
-        ncxPath: ncxPath,
-        opsRoot: opsRoot,
+        opfPath,
+        ncxPath,
+        opsRoot,
       },
       raw: {
         json: {
           prefixes: {
-            opfPrefix: opfPrefix,
-            dcPrefix: dcPrefix,
-            ncxPrefix: ncxPrefix,
+            opfPrefix,
+            dcPrefix,
+            ncxPrefix,
           },
-          container: container,
-          opf: opf,
-          ncx: ncx,
-          nav: nav,
+          container,
+          opf,
+          ncx,
+          nav,
         },
         xml: {
-          opfXML: opfXML,
-          ncxXML: ncxXML,
+          opfXML,
+          ncxXML,
         },
       },
     };
