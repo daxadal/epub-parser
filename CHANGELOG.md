@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/daxadal/epub-parser/compare/v0.4.0...v0.5.0) (2024-04-18)
+
+
+### Features
+
+* add @lesjoursfr/html-to-epub ([#13](https://github.com/daxadal/epub-parser/issues/13)) ([9747130](https://github.com/daxadal/epub-parser/commit/974713044a1eeeb3dd816d344597e8d0b2e660a2))
+
 ## [0.4.0](https://github.com/daxadal/epub-parser/compare/v0.3.0...v0.4.0) (2024-03-14)
 
 
