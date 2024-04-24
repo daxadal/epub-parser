@@ -38,12 +38,10 @@ export function extractBinary(filename: any) {
 
 export async function open(filename: string | Buffer): Promise<unknown> {
   /*
-
-			"filename" is still called "filename" but now it can be
-			a full file path, a full URL, or a Buffer object
-			we should eventually change its name...
-
-		*/
+  "filename" is still called "filename" but now it can be
+  a full file path, a full URL, or a Buffer object
+  we should eventually change its name...
+  */
 
   let epubdata = {};
   let md5: string;
@@ -86,9 +84,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
   // let spineOrder: any[];
   let simpleMeta: Record<string, any>[];
 
-  function readAndParseData(
-    /* Buffer */ data: crypto.BinaryLike | Buffer
-  ): Promise<any> {
+  async function readAndParseData(data: string | Buffer): Promise<any> {
     md5 = crypto.createHash("md5").update(data).digest("hex");
 
     zip = new jszip(data.toString("binary"), {
@@ -98,18 +94,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     });
     const containerData = extractText("META-INF/container.xml");
 
-    return parseEpub(containerData);
-  }
-
-  async function parseEpub(
-    containerDataXML: convertableToString
-  ): Promise<any> {
-    /*
-      Parsing chain walking down the metadata of an epub,
-      and storing it in the JSON config object
-    */
-
-    const containerJSON = await parser.parseStringPromise(containerDataXML);
+    const containerJSON = await parser.parseStringPromise(containerData);
     const epubData = await parseContainer(containerJSON);
     return epubData;
   }
