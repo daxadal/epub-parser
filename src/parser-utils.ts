@@ -90,14 +90,14 @@ export function buildLinearSpine(
 }
 export function buildMetadataLists(
   metas: any,
-  uniqueIdentifier: any,
+  primaryIdName: any,
   itemHashById: any,
   opsRoot: string
 ) {
   let epub2CoverUrl: string | null = null;
   const simpleMeta: Record<string, any>[] = [];
-  let uniqueIdentifierValue: string | undefined,
-    uniqueIdentifierScheme: any = null;
+  let primaryIdValue: string | undefined,
+    primaryIdSchema: any = null;
 
   for (const prop in metas) {
     if (prop === "meta") {
@@ -145,16 +145,16 @@ export function buildMetadataLists(
       if (
         /identifier$/i.exec(prop) &&
         metas[prop][0].$.id &&
-        metas[prop][0].$.id === uniqueIdentifier
+        metas[prop][0].$.id === primaryIdName
       ) {
         if (typeof content === "object") {
           console.log("warning - content not fully parsed");
           console.log(content);
           console.log(metas[prop][0].$.id);
         } else {
-          uniqueIdentifierValue = content;
+          primaryIdValue = content;
           if (metas[prop][0].$.scheme) {
-            uniqueIdentifierScheme = metas[prop][0].$.scheme;
+            primaryIdSchema = metas[prop][0].$.scheme;
           }
         }
       }
@@ -164,8 +164,8 @@ export function buildMetadataLists(
   return {
     simpleMeta,
     epub2CoverUrl,
-    uniqueIdentifierValue,
-    uniqueIdentifierScheme,
+    primaryIdValue: primaryIdValue,
+    primaryIdSchema: primaryIdSchema,
   };
 }
 export function parsePackageElements(

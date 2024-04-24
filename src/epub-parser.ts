@@ -46,8 +46,8 @@ export async function open(filename: string | Buffer): Promise<unknown> {
 		*/
 
   let epubdata = {};
-  let md5hash: string;
-  let htmlNav: string | null;
+  let md5: string;
+  let navMapHTML: string | null;
 
   let container: {
       rootfiles: { rootfile: { [x: string]: { [x: string]: any } }[] }[];
@@ -57,11 +57,11 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     opfPath: any,
     ncxPath: string,
     opsRoot: string,
-    uniqueIdentifier: any,
-    uniqueIdentifierValue: string | undefined,
-    uniqueIdentifierScheme: any,
-    opfDataXML: { toString: () => convertableToString },
-    ncxDataXML: string,
+    primaryIdName: any,
+    primaryIdValue: string | undefined,
+    primaryIdSchema: any,
+    opfXML: { toString: () => convertableToString },
+    ncxXML: string,
     opfPrefix = "",
     dcPrefix = "",
     ncxPrefix = "",
@@ -89,7 +89,7 @@ export async function open(filename: string | Buffer): Promise<unknown> {
   function readAndParseData(
     /* Buffer */ data: crypto.BinaryLike | Buffer
   ): Promise<any> {
-    md5hash = crypto.createHash("md5").update(data).digest("hex");
+    md5 = crypto.createHash("md5").update(data).digest("hex");
 
     zip = new jszip(data.toString("binary"), {
       binary: true,
@@ -139,13 +139,13 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     }
 
     // get the OPF data and parse it
-    opfDataXML = extractText(root);
+    opfXML = extractText(root);
 
-    const opfJSON = await parser.parseStringPromise(opfDataXML.toString());
+    const opfJSON = await parser.parseStringPromise(opfXML.toString());
 
     // store opf data
     opf = opfJSON["opf:package"] ?? opfJSON["package"];
-    uniqueIdentifier = opf["$"]["unique-identifier"];
+    primaryIdName = opf["$"]["unique-identifier"];
     epubVersion = opf["$"]["version"][0];
 
     isEpub3 = epubVersion === "3" || epubVersion === "3.0";
@@ -191,19 +191,19 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     ({
       simpleMeta,
       epub2CoverUrl,
-      uniqueIdentifierValue,
-      uniqueIdentifierScheme,
-    } = buildMetadataLists(metadata, uniqueIdentifier, itemHashById, opsRoot));
+      primaryIdValue,
+      primaryIdSchema,
+    } = buildMetadataLists(metadata, primaryIdName, itemHashById, opsRoot));
 
     if (!ncxId) {
       // assume epub 3 navigation doc
       if (!isEpub3)
         throw new Error("ncx id not found but package indicates epub 2");
 
-      ncxDataXML = "";
+      ncxXML = "";
       ncx = {};
       ncxPath = "";
-      htmlNav = null;
+      navMapHTML = null;
 
       if (!epub3NavHtml) throw new Error("epub 3 with no nav html");
 
@@ -220,9 +220,9 @@ export async function open(filename: string | Buffer): Promise<unknown> {
           ncxPath = opsRoot + manifest[opfPrefix + "item"][item]["$"].href;
         }
       }
-      ncxDataXML = extractText(ncxPath);
+      ncxXML = extractText(ncxPath);
 
-      const ncxJSON = await parser.parseStringPromise(ncxDataXML.toString());
+      const ncxJSON = await parser.parseStringPromise(ncxXML.toString());
 
       // grab the correct ns prefix for ncx
 
@@ -241,11 +241,11 @@ export async function open(filename: string | Buffer): Promise<unknown> {
 
       const navPoints = ncx[ncxPrefix + "navMap"][0][ncxPrefix + "navPoint"];
 
-      htmlNav = "<ul>";
+      navMapHTML = "<ul>";
       for (let i = 0; i < (navPoints ?? []).length; i++) {
-        htmlNav += processNavPoint(navPoints[i]);
+        navMapHTML += processNavPoint(navPoints[i]);
       }
-      htmlNav += "</ul>" + "\n";
+      navMapHTML += "</ul>" + "\n";
       epubdata = getEpubDataBlock();
 
       return epubdata;
@@ -256,15 +256,15 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     return {
       easy: {
         primaryID: {
-          name: uniqueIdentifier,
-          value: uniqueIdentifierValue,
-          scheme: uniqueIdentifierScheme,
+          name: primaryIdName,
+          value: primaryIdValue,
+          scheme: primaryIdSchema,
         },
         epubVersion: epubVersion,
         isEpub3: isEpub3,
-        md5: md5hash,
+        md5: md5,
         epub3NavHtml: epub3NavHtml,
-        navMapHTML: htmlNav,
+        navMapHTML: navMapHTML,
         linearSpine: linearSpine,
         itemHashById: itemHashById,
         itemHashByHref: itemHashByHref,
@@ -291,8 +291,8 @@ export async function open(filename: string | Buffer): Promise<unknown> {
           nav: nav,
         },
         xml: {
-          opfXML: opfDataXML,
-          ncxXML: ncxDataXML,
+          opfXML: opfXML,
+          ncxXML: ncxXML,
         },
       },
     };
