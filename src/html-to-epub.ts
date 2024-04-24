@@ -167,11 +167,9 @@ export class EPub {
     );
     const contentOffset = this.content.length;
     this.content.push(
-      ...options.content.map<EpubContent>((content, i) => {
-        const index = contentOffset + i;
-
-        return this.parseContent(content, index, contentTemplatePath);
-      })
+      ...options.content.map<EpubContent>((content, i) =>
+        this.parseContent(content, contentOffset + i, contentTemplatePath)
+      )
     );
   }
 
@@ -244,13 +242,12 @@ export class EPub {
       node.properties.alt = node.properties.alt ?? "image-placeholder";
     }
 
-    for (const k of Object.keys(attrs)) {
-      if (allowedAttributes.includes(k)) {
-        if (k === "type" && attrs[k] !== "script") {
-          delete node.properties[k];
-        }
-      } else {
-        delete node.properties[k];
+    for (const [propName, propValue] of Object.entries(attrs)) {
+      if (
+        !allowedAttributes.includes(propName) ||
+        (propName === "type" && propValue !== "script")
+      ) {
+        delete node.properties[propName];
       }
     }
 
