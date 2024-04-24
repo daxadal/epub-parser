@@ -294,12 +294,11 @@ export async function open(filename: string | Buffer): Promise<unknown> {
     };
   }
 
+  let data: Buffer | string;
   if (Buffer.isBuffer(filename)) {
-    return readAndParseData(filename);
+    data = filename;
   } else if (/^https?:\/\//i.exec(filename)) {
-    // is a URL
-
-    const body = await new Promise<Buffer>((resolve, reject) =>
+    data = await new Promise<Buffer>((resolve, reject) =>
       request(
         {
           uri: filename,
@@ -314,13 +313,11 @@ export async function open(filename: string | Buffer): Promise<unknown> {
         }
       )
     );
-    return readAndParseData(body);
   } else {
     // assume local full path to file
-
-    const data = await fs.readFile(filename, "binary");
-    return readAndParseData(data);
+    data = await fs.readFile(filename, "binary");
   }
+  return readAndParseData(data);
 } // end #open function definition block
 
 export function getZip() {
