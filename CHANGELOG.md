@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/daxadal/epub-parser/compare/v0.5.0...v0.6.0) (2026-01-22)
+
+
+### Features
+
+* code clarity ([#16](https://github.com/daxadal/epub-parser/issues/16)) ([c58fa59](https://github.com/daxadal/epub-parser/commit/c58fa59588bc89b2ca353d34eb6e8a754a18e790))
+
 ## [0.5.0](https://github.com/daxadal/epub-parser/compare/v0.4.0...v0.5.0) (2024-04-18)
 
 
