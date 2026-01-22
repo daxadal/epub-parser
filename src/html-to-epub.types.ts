@@ -8,6 +8,19 @@ export interface EpubContentOptions {
   beforeToc?: boolean;
 }
 
+export interface EpubContent {
+  id: string;
+  href: string;
+  title: string;
+  data: string;
+  url: string | null;
+  author: Array<string>;
+  filePath: string;
+  templatePath: string;
+  excludeFromToc: boolean;
+  beforeToc: boolean;
+}
+
 export interface EpubOptions {
   title: string;
   description: string;
@@ -30,18 +43,7 @@ export interface EpubOptions {
   verbose?: boolean;
   tempDir?: string;
 }
-export interface EpubContent {
-  id: string;
-  href: string;
-  title: string;
-  data: string;
-  url: string | null;
-  author: Array<string>;
-  filePath: string;
-  templatePath: string;
-  excludeFromToc: boolean;
-  beforeToc: boolean;
-}
+
 export interface EpubImage {
   id: string;
   url: string;
